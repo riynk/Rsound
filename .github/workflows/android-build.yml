@@ -38,18 +38,38 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build Normal and F-Droid debug APKs
+        id: build_apks
         run: ./gradlew :app:assembleNormalDebug :app:assembleFdroidDebug --stacktrace
+
+      - name: Verify APK outputs
+        if: steps.build_apks.outcome == 'success'
+        shell: bash
+        run: |
+          mapfile -t apks < <(find app/build/outputs/apk -type f -name '*.apk' -print)
+          printf 'Found %s APK file(s)\n' "${#apks[@]}"
+          printf '%s\n' "${apks[@]}"
+          if [ "${#apks[@]}" -lt 2 ]; then
+            echo "::error::Expected both Normal and F-Droid APKs, but fewer than two APKs were produced."
+            exit 1
+          fi
 
       - name: Run Normal debug unit tests
         run: ./gradlew :app:testNormalDebugUnitTest --stacktrace
 
-      - name: Upload APKs and test reports
+      - name: Upload installable APKs
+        if: always() && steps.build_apks.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rsound-android-debug-apks
+          path: app/build/outputs/apk/*/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: rsound-debug-apks
-          path: |
-            app/build/outputs/apk/*/debug/*.apk
-            app/build/reports/tests/
+          name: rsound-test-reports
+          path: app/build/reports/tests/
           if-no-files-found: warn
           retention-days: 14
