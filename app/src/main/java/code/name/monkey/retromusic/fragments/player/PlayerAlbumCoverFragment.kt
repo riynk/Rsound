@@ -136,8 +136,8 @@ class PlayerAlbumCoverFragment : AbsMusicServiceFragment(R.layout.fragment_playe
             hasTtmlFormat = result.third
             binding.playerLyricsFormat.text = result.first.third
             val replaceCover = PreferenceUtil.lyricsType == CoverLyricsType.REPLACE_COVER
-            binding.playerLyricsTranslate.isVisible = PreferenceUtil.showLyrics && replaceCover && result.third.isNotBlank()
-            binding.playerLyricsFormat.isVisible = PreferenceUtil.showLyrics && replaceCover && result.third.isNotBlank()
+            binding.playerLyricsTranslate.isVisible = PreferenceUtil.showLyrics && replaceCover && result.first.third.isNotBlank()
+            binding.playerLyricsFormat.isVisible = PreferenceUtil.showLyrics && replaceCover && result.first.third.isNotBlank()
             binding.playerLyricsFormat.isClickable = hasLrcFormat && hasTtmlFormat
             val selectedFile = result.first.first
             if (selectedFile != null) {
