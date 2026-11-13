@@ -17,6 +17,7 @@ package code.name.monkey.retromusic.model.lyrics;
 import java.util.ArrayList;
 
 import code.name.monkey.retromusic.model.Song;
+import code.name.monkey.retromusic.lyrics.SynchronizedLyricsTTML;
 
 public class Lyrics {
 
@@ -24,6 +25,7 @@ public class Lyrics {
 
   static {
     Lyrics.FORMATS.add(SynchronizedLyricsLRC.class);
+    Lyrics.FORMATS.add(SynchronizedLyricsTTML.class);
   }
 
   public String data;
