@@ -46,6 +46,7 @@
             android:defaultValue="false"
             android:key="wallpaper_accent"
             android:layout="@layout/list_item_view_switch"
+            app:icon="@drawable/ic_palette"
             android:summary="@string/pref_summary_wallpaper_accent"
             android:title="@string/pref_title_wallpaper_accent" />
 
