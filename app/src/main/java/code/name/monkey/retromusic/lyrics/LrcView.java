@@ -77,8 +77,7 @@ public class LrcView extends View {
     private Scroller mScroller;
     private float mOffset;
     private int mCurrentLine;
-    private int mWordHighlightLine = -1;
-    private long mCurrentTime;
+    private long mWordHighlightTime = -1L;
     private Object mFlag;
     private boolean isShowTimeline;
     private boolean isTouching;
@@ -389,7 +388,6 @@ public class LrcView extends View {
                         return;
                     }
 
-                    mCurrentTime = time;
                     int line = findShowLine(time);
                     if (line != mCurrentLine) {
                         mCurrentLine = line;
@@ -398,26 +396,27 @@ public class LrcView extends View {
                         }
                     }
 
-                    if (mWordHighlightLine >= 0 && mWordHighlightLine < mLrcEntryList.size()
-                            && mWordHighlightLine != line) {
-                        LrcEntry previous = mLrcEntryList.get(mWordHighlightLine);
-                        if (previous.hasWordTimings()) {
-                            previous.updateWordHighlight(
-                                    mLrcPaint, (int) getLrcWidth(), mTextGravity, time,
-                                    mCurrentTextColor, mNormalTextColor);
+                    long activeLineTime = mLrcEntryList.get(line).getTime();
+                    if (mWordHighlightTime >= 0 && mWordHighlightTime != activeLineTime) {
+                        for (LrcEntry entry : mLrcEntryList) {
+                            if (entry.getTime() == mWordHighlightTime && entry.hasWordTimings()) {
+                                entry.updateWordHighlight(
+                                        mLrcPaint, (int) getLrcWidth(), mTextGravity, time,
+                                        mCurrentTextColor, mNormalTextColor);
+                            }
                         }
                     }
-                    if (line >= 0 && line < mLrcEntryList.size()) {
-                        LrcEntry current = mLrcEntryList.get(line);
-                        if (current.hasWordTimings()) {
-                            current.updateWordHighlight(
+
+                    boolean hasTimedWords = false;
+                    for (LrcEntry entry : mLrcEntryList) {
+                        if (entry.getTime() == activeLineTime && entry.hasWordTimings()) {
+                            entry.updateWordHighlight(
                                     mLrcPaint, (int) getLrcWidth(), mTextGravity, time,
                                     mCurrentTextColor, mNormalTextColor);
-                            mWordHighlightLine = line;
-                        } else {
-                            mWordHighlightLine = -1;
+                            hasTimedWords = true;
                         }
                     }
+                    mWordHighlightTime = hasTimedWords ? activeLineTime : -1L;
                     invalidate();
                 });
     }
@@ -562,8 +561,7 @@ public class LrcView extends View {
         mLrcEntryList.clear();
         mOffset = 0;
         mCurrentLine = 0;
-        mWordHighlightLine = -1;
-        mCurrentTime = 0L;
+        mWordHighlightTime = -1L;
     }
 
     private void smoothScrollTo(int line) {
