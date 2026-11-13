@@ -50,6 +50,11 @@ public final class TtmlUtils {
             XmlPullParserFactory factory = XmlPullParserFactory.newInstance();
             factory.setNamespaceAware(true);
             XmlPullParser parser = factory.newPullParser();
+            try {
+                parser.setFeature(XmlPullParser.FEATURE_PROCESS_DOCDECL, false);
+            } catch (Exception ignored) {
+                // Parser implementations may not expose this optional feature.
+            }
             parser.setInput(new StringReader(value));
             int event = parser.getEventType();
             while (event != XmlPullParser.END_DOCUMENT) {
@@ -62,6 +67,10 @@ public final class TtmlUtils {
             // Invalid XML is not a TTML lyric document.
         }
         return false;
+    }
+
+    public static boolean hasValidTtml(String content) {
+        return isTtml(content) && !parseDocument(content).entries.isEmpty();
     }
 
     public static List<LrcEntry> parseTtml(String content) {

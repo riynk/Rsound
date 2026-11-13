@@ -59,6 +59,7 @@ import code.name.monkey.retromusic.helper.MusicPlayerRemote
 import code.name.monkey.retromusic.helper.MusicProgressViewUpdateHelper
 import code.name.monkey.retromusic.lyrics.LrcView
 import code.name.monkey.retromusic.lyrics.LyricsTranslation
+import code.name.monkey.retromusic.lyrics.TtmlUtils
 import code.name.monkey.retromusic.model.AudioTagInfo
 import code.name.monkey.retromusic.model.Song
 import code.name.monkey.retromusic.network.OnlineLyricsRepository
@@ -524,6 +525,7 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
     }
 
     private fun loadNormalLyrics() {
+        clearTranslation()
         val file = File(song.data)
         var lyrics = try {
             AudioFileIO.read(file).tagOrCreateDefault.getFirst(FieldKey.LYRICS)
@@ -552,7 +554,8 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
             Regex("(?m)^\\s*\\[\\d{1,3}:\\d{2}(?:[.:]\\d{1,3})?\\]")
                 .containsMatchIn(LyricUtil.getStringFromLrc(file))
         } == true
-        val hasTtml = LyricUtil.getTtmlLyricsFile(song) != null
+        val ttmlFile = LyricUtil.getTtmlLyricsFile(song)
+        val hasTtml = ttmlFile?.let { TtmlUtils.hasValidTtml(LyricUtil.getStringFromLrc(it)) } == true
         item.isVisible = hasLrc && hasTtml
         item.title = getString(
             if (useTtmlLyrics) R.string.switch_to_lrc else R.string.switch_to_ttml
@@ -562,42 +565,41 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
 
     private fun loadLRCLyrics(): Boolean {
         clearTranslation()
+        val timestampPattern = Regex("(?m)^\\s*\\[\\d{1,3}:\\d{2}(?:[.:]\\d{1,3})?\\]")
         val lrcFile = LyricUtil.getLrcLyricsFile(song)
         val ttmlFile = LyricUtil.getTtmlLyricsFile(song)
-        var selectedFile = when {
-            lrcFile != null && ttmlFile != null ->
-                if (useTtmlLyrics) ttmlFile else lrcFile
-            lrcFile != null -> lrcFile
-            else -> ttmlFile
-        }
-
-        if (selectedFile != null && selectedFile.extension.equals("lrc", ignoreCase = true)) {
-            val content = LyricUtil.getStringFromLrc(selectedFile)
-            val hasTimestamps = Regex("(?m)^\\s*\\[\\d{1,3}:\\d{2}(?:[.:]\\d{1,3})?\\]")
-                .containsMatchIn(content)
-            if (!hasTimestamps && ttmlFile != null) {
-                selectedFile = ttmlFile
-                useTtmlLyrics = true
-            } else if (!hasTimestamps) {
-                binding.lyricsView.setLabel(getString(R.string.empty))
-                updateLyricsFormatAction()
-                return false
+        val lrcContent = lrcFile?.let { LyricUtil.getStringFromLrc(it) }.orEmpty()
+        val ttmlContent = ttmlFile?.let { LyricUtil.getStringFromLrc(it) }.orEmpty()
+        val hasLrc = timestampPattern.containsMatchIn(lrcContent)
+        val hasTtml = TtmlUtils.hasValidTtml(ttmlContent)
+        val selectedFile = when {
+            hasLrc && hasTtml -> if (useTtmlLyrics) ttmlFile else lrcFile
+            hasLrc -> {
+                useTtmlLyrics = false
+                lrcFile
             }
+            hasTtml -> {
+                useTtmlLyrics = true
+                ttmlFile
+            }
+            else -> null
         }
 
         updateLyricsFormatAction()
         if (selectedFile != null) {
             binding.lyricsView.loadLrc(selectedFile)
-        } else {
-            val embeddedLyrics = LyricUtil.getEmbeddedSyncedLyrics(song.data)
-            if (embeddedLyrics != null) {
-                binding.lyricsView.loadLrc(embeddedLyrics)
-            } else {
-                binding.lyricsView.setLabel(getString(R.string.empty))
-                return false
-            }
+            return true
         }
-        return true
+
+        val embeddedLyrics = LyricUtil.getEmbeddedSyncedLyrics(song.data).orEmpty()
+        if (TtmlUtils.hasValidTtml(embeddedLyrics) || timestampPattern.containsMatchIn(embeddedLyrics)) {
+            useTtmlLyrics = TtmlUtils.hasValidTtml(embeddedLyrics)
+            binding.lyricsView.loadLrc(embeddedLyrics)
+            return true
+        }
+
+        binding.lyricsView.setLabel(getString(R.string.empty))
+        return false
     }
 
     private fun loadLyrics() {

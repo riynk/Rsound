@@ -107,39 +107,43 @@ class PlayerAlbumCoverFragment : AbsMusicServiceFragment(R.layout.fragment_playe
             val result = withContext(Dispatchers.IO) {
                 val lrcFile = LyricUtil.getLrcLyricsFile(song)
                 val ttmlFile = LyricUtil.getTtmlLyricsFile(song)
-                val lrcHasTimestamps = lrcFile?.let {
-                    Regex("(?m)^\\s*\\[\\d{1,3}:\\d{2}(?:[.:]\\d{1,3})?\\]")
-                        .containsMatchIn(LyricUtil.getStringFromLrc(it))
-                } == true
-                hasLrcFormat = lrcHasTimestamps
-                hasTtmlFormat = ttmlFile != null
+                val lrcContent = lrcFile?.let { LyricUtil.getStringFromLrc(it) }.orEmpty()
+                val ttmlContent = ttmlFile?.let { LyricUtil.getStringFromLrc(it) }.orEmpty()
+                val lrcHasTimestamps = Regex("(?m)^\\s*\\[\\d{1,3}:\\d{2}(?:[.:]\\d{1,3})?\\]")
+                    .containsMatchIn(lrcContent)
+                val ttmlIsValid = TtmlUtils.hasValidTtml(ttmlContent)
                 val selectedFile = when {
-                    lrcHasTimestamps && ttmlFile != null -> if (useTtmlLyrics) ttmlFile else lrcFile
+                    lrcHasTimestamps && ttmlIsValid -> if (useTtmlLyrics) ttmlFile else lrcFile
                     lrcHasTimestamps -> lrcFile
-                    ttmlFile != null -> ttmlFile
+                    ttmlIsValid -> ttmlFile
                     else -> null
                 }
                 val embedded = if (selectedFile == null) LyricUtil.getEmbeddedSyncedLyrics(song.data).orEmpty() else ""
+                val embeddedFormat = when {
+                    TtmlUtils.hasValidTtml(embedded) -> "TTML"
+                    Regex("(?m)^\\s*\\[\\d{1,3}:\\d{2}(?:[.:]\\d{1,3})?\\]").containsMatchIn(embedded) -> "LRC"
+                    else -> ""
+                }
                 val format = when {
                     selectedFile?.extension.equals("ttml", true) -> "TTML"
                     selectedFile != null -> "LRC"
-                    TtmlUtils.isTtml(embedded) -> "TTML"
-                    embedded.isNotBlank() -> "LRC"
-                    else -> ""
+                    else -> embeddedFormat
                 }
-                Triple(selectedFile, embedded, format)
+                Triple(Triple(selectedFile, embedded, format), lrcHasTimestamps, ttmlIsValid)
             }
             if (_binding == null || requestToken != lyricsLoadToken) return@launch
-            binding.playerLyricsFormat.text = result.third
+            hasLrcFormat = result.second
+            hasTtmlFormat = result.third
+            binding.playerLyricsFormat.text = result.first.third
             val replaceCover = PreferenceUtil.lyricsType == CoverLyricsType.REPLACE_COVER
             binding.playerLyricsTranslate.isVisible = PreferenceUtil.showLyrics && replaceCover && result.third.isNotBlank()
             binding.playerLyricsFormat.isVisible = PreferenceUtil.showLyrics && replaceCover && result.third.isNotBlank()
             binding.playerLyricsFormat.isClickable = hasLrcFormat && hasTtmlFormat
-            val selectedFile = result.first
+            val selectedFile = result.first.first
             if (selectedFile != null) {
                 lrcView.loadLrc(selectedFile)
-            } else if (result.second.isNotBlank()) {
-                lrcView.loadLrc(result.second)
+            } else if (result.first.second.isNotBlank()) {
+                lrcView.loadLrc(result.first.second)
             } else {
                 lrcView.reset()
                 lrcView.setLabel(getString(R.string.no_lyrics_found))

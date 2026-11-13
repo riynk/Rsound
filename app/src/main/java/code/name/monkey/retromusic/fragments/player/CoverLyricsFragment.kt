@@ -173,41 +173,41 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
                 try {
                     val lrcFile = LyricUtil.getLrcLyricsFile(song)
                     val ttmlFile = LyricUtil.getTtmlLyricsFile(song)
-                    var selectedFile = when {
-                        lrcFile != null && ttmlFile != null ->
-                            if (useTtmlLyrics) ttmlFile else lrcFile
-                        lrcFile != null -> lrcFile
-                        else -> ttmlFile
+                    val lrcContent = lrcFile?.let { LyricUtil.getStringFromLrc(it) }.orEmpty()
+                    val ttmlContent = ttmlFile?.let { LyricUtil.getStringFromLrc(it) }.orEmpty()
+                    val hasLrcTimestamps = Regex("(?m)^\\s*\\[\\d{1,3}:\\d{2}(?:[.:]\\d{1,3})?\\]")
+                        .containsMatchIn(lrcContent)
+                    val hasTtml = TtmlUtils.hasValidTtml(ttmlContent)
+                    val selectedFile = when {
+                        hasLrcTimestamps && hasTtml -> if (useTtmlLyrics) ttmlFile else lrcFile
+                        hasLrcTimestamps -> lrcFile
+                        hasTtml -> ttmlFile
+                        else -> null
                     }
-                    var fileText = selectedFile?.let { LyricUtil.getStringFromLrc(it) }.orEmpty()
-                    val hasLrcTimestamps = lrcFile?.let { file ->
-                        Regex("(?m)^\\s*\\[\\d{1,3}:\\d{2}(?:[.:]\\d{1,3})?\\]")
-                            .containsMatchIn(LyricUtil.getStringFromLrc(file))
-                    } == true
-                    if (selectedFile == lrcFile && !hasLrcTimestamps && ttmlFile != null) {
-                        selectedFile = ttmlFile
-                        fileText = LyricUtil.getStringFromLrc(ttmlFile)
-                    }
-                    val embedded = if (fileText.isEmpty()) {
+                    val fileText = selectedFile?.let { LyricUtil.getStringFromLrc(it) }.orEmpty()
+                    val embedded = if (selectedFile == null) {
                         LyricUtil.getEmbeddedSyncedLyrics(song.data).orEmpty()
                     } else {
                         ""
                     }
                     val content = fileText.ifEmpty { embedded }
+                    val embeddedFormat = when {
+                        TtmlUtils.hasValidTtml(embedded) -> "TTML"
+                        Regex("(?m)^\\s*\\[\\d{1,3}:\\d{2}(?:[.:]\\d{1,3})?\\]").containsMatchIn(embedded) -> "LRC"
+                        else -> ""
+                    }
                     val format = when {
                         selectedFile?.extension.equals("ttml", ignoreCase = true) -> "TTML"
                         selectedFile != null -> "LRC"
-                        TtmlUtils.isTtml(content) -> "TTML"
-                        content.isNotBlank() -> "LRC"
-                        else -> ""
+                        else -> embeddedFormat
                     }
-                    val parsedDocument = if (TtmlUtils.isTtml(content)) {
+                    val parsedDocument = if (TtmlUtils.hasValidTtml(content)) {
                         TtmlUtils.parseDocument(content)
                     } else {
                         null
                     }
                     Pair(
-                        Triple(Lyrics.parse(song, content), format, hasLrcTimestamps && ttmlFile != null),
+                        Triple(Lyrics.parse(song, content), format, hasLrcTimestamps && hasTtml),
                         parsedDocument
                     )
                 } catch (err: FileNotFoundException) {
