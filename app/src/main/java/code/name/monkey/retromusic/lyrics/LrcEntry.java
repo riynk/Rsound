@@ -103,6 +103,10 @@ class LrcEntry implements Comparable<LrcEntry> {
     return !wordTimings.isEmpty();
   }
 
+  List<WordTiming> getWordTimings() {
+    return wordTimings;
+  }
+
   void updateWordHighlight(TextPaint paint, int width, int gravity, long time,
       int activeColor, int inactiveColor) {
     if (wordTimings.isEmpty()) return;
