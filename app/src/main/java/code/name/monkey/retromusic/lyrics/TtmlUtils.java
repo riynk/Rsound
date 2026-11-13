@@ -20,6 +20,10 @@ import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserFactory;
 
 import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -27,6 +31,15 @@ import java.util.Locale;
 
 /** Parses TTML lyric documents without requiring a network connection. */
 public final class TtmlUtils {
+    private static final int CACHE_LIMIT = 8;
+    private static final Map<String, ParsedDocument> CACHE =
+        new LinkedHashMap<String, ParsedDocument>(CACHE_LIMIT, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<String, ParsedDocument> eldest) {
+                return size() > CACHE_LIMIT;
+            }
+        };
+
     private TtmlUtils() {}
 
     public static boolean isTtml(String content) {
@@ -39,6 +52,10 @@ public final class TtmlUtils {
     }
 
     public static List<LrcEntry> parseTtml(String content) {
+        return parseDocument(content).entries;
+    }
+
+    private static List<LrcEntry> parseTtmlUncached(String content) {
         List<LrcEntry> entries = new ArrayList<>();
         if (!isTtml(content)) return entries;
 
@@ -174,7 +191,7 @@ public final class TtmlUtils {
         private final List<LrcEntry> entries;
 
         private ParsedDocument(List<LrcEntry> entries) {
-            this.entries = entries;
+            this.entries = Collections.unmodifiableList(new ArrayList<>(entries));
         }
 
         private long findLineTime(long timeMs) {
@@ -243,7 +260,29 @@ public final class TtmlUtils {
     }
 
     public static ParsedDocument parseDocument(String content) {
-        return new ParsedDocument(parseTtml(content));
+        if (TextUtils.isEmpty(content)) return new ParsedDocument(new ArrayList<>());
+        String key = fingerprint(content);
+        synchronized (CACHE) {
+            ParsedDocument cached = CACHE.get(key);
+            if (cached != null) return cached;
+        }
+        ParsedDocument parsed = new ParsedDocument(parseTtmlUncached(content));
+        synchronized (CACHE) {
+            CACHE.put(key, parsed);
+        }
+        return parsed;
+    }
+
+    private static String fingerprint(String content) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                .digest(content.getBytes(StandardCharsets.UTF_8));
+            StringBuilder key = new StringBuilder(digest.length * 2);
+            for (byte value : digest) key.append(String.format(Locale.ROOT, "%02x", value));
+            return content.length() + ":" + key;
+        } catch (Exception ignored) {
+            return content.length() + ":" + content.hashCode();
+        }
     }
 
     private static final class SpanFrame {
