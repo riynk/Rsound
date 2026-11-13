@@ -140,7 +140,7 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
                         content.isNotBlank() -> "LRC"
                         else -> ""
                     }
-                    Pair(Lyrics.parse(song, content), format)
+                    Triple(Lyrics.parse(song, content), format, lrcFile != null && ttmlFile != null)
                 } catch (err: FileNotFoundException) {
                     null
                 } catch (e: CannotReadException) {
@@ -151,6 +151,7 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
             lyrics = result?.first
             binding.playerLyricsFormat.text = result?.second.orEmpty()
             binding.playerLyricsFormat.isVisible = !result?.second.isNullOrBlank()
+            binding.playerLyricsFormat.isClickable = result?.third == true
         }
     }
 
