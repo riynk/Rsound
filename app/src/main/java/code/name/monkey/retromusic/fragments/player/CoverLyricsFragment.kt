@@ -123,13 +123,21 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
                 try {
                     val lrcFile = LyricUtil.getLrcLyricsFile(song)
                     val ttmlFile = LyricUtil.getTtmlLyricsFile(song)
-                    val selectedFile = when {
+                    var selectedFile = when {
                         lrcFile != null && ttmlFile != null ->
                             if (useTtmlLyrics) ttmlFile else lrcFile
                         lrcFile != null -> lrcFile
                         else -> ttmlFile
                     }
-                    val fileText = selectedFile?.let { LyricUtil.getStringFromLrc(it) }.orEmpty()
+                    var fileText = selectedFile?.let { LyricUtil.getStringFromLrc(it) }.orEmpty()
+                    val hasLrcTimestamps = lrcFile?.let { file ->
+                        Regex("(?m)^\\s*\\[\\d{1,3}:\\d{2}(?:[.:]\\d{1,3})?\\]")
+                            .containsMatchIn(LyricUtil.getStringFromLrc(file))
+                    } == true
+                    if (selectedFile == lrcFile && !hasLrcTimestamps && ttmlFile != null) {
+                        selectedFile = ttmlFile
+                        fileText = LyricUtil.getStringFromLrc(ttmlFile)
+                    }
                     val embedded = if (fileText.isEmpty()) {
                         LyricUtil.getEmbeddedSyncedLyrics(song.data).orEmpty()
                     } else {
@@ -149,7 +157,7 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
                         null
                     }
                     Pair(
-                        Triple(Lyrics.parse(song, content), format, lrcFile != null && ttmlFile != null),
+                        Triple(Lyrics.parse(song, content), format, hasLrcTimestamps && ttmlFile != null),
                         parsedDocument
                     )
                 } catch (err: FileNotFoundException) {
