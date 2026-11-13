@@ -383,8 +383,7 @@ class CoverLrcView @JvmOverloads constructor(
                 if (mWordHighlightTime >= 0L) {
                     for (entry in mLrcEntryList) {
                         if (entry.time == previousTime && entry.hasWordTimings()) {
-                            entry.updateWordHighlight(mLrcPaint, lrcWidth.toInt(), mTextGravity, time,
-                                mCurrentTextColor, mNormalTextColor)
+                            entry.clearWordHighlight(mLrcPaint, lrcWidth.toInt(), mTextGravity, mNormalTextColor)
                         }
                     }
                 }

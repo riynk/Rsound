@@ -131,6 +131,12 @@ class LrcEntry implements Comparable<LrcEntry> {
     return wordTimings;
   }
 
+  void clearWordHighlight(TextPaint paint, int width, int gravity, int inactiveColor) {
+    TextPaint inactivePaint = new TextPaint(paint);
+    inactivePaint.setColor(inactiveColor);
+    init(inactivePaint, width, gravity, inactiveColor);
+  }
+
   void updateWordHighlight(TextPaint paint, int width, int gravity, long time,
       int activeColor, int inactiveColor) {
     if (wordTimings.isEmpty()) return;
@@ -317,7 +323,7 @@ class LrcEntry implements Comparable<LrcEntry> {
     int end = styled.length();
     styled.setSpan(new RelativeSizeSpan(0.78f), start, end,
         SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE);
-    styled.setSpan(new StyleSpan(Typeface.BOLD_ITALIC), start, end,
+    styled.setSpan(new StyleSpan(Typeface.ITALIC), start, end,
         SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE);
     int alpha = Math.min(220, Math.max(150, (translationColor >>> 24) & 0xFF));
     int color = (translationColor & 0x00FFFFFF) | (alpha << 24);

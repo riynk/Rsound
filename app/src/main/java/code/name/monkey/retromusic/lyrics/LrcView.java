@@ -475,9 +475,8 @@ public class LrcView extends View {
                     if (mWordHighlightTime >= 0 && mWordHighlightTime != activeLineTime) {
                         for (LrcEntry entry : mLrcEntryList) {
                             if (entry.getTime() == mWordHighlightTime && entry.hasWordTimings()) {
-                                entry.updateWordHighlight(
-                                        mLrcPaint, (int) getLrcWidth(), mTextGravity, time,
-                                        mCurrentTextColor, mNormalTextColor);
+                                entry.clearWordHighlight(
+                                        mLrcPaint, (int) getLrcWidth(), mTextGravity, mNormalTextColor);
                             }
                         }
                     }

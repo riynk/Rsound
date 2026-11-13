@@ -296,7 +296,7 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
             val start = length
             append(translation)
             setSpan(RelativeSizeSpan(0.78f), start, length, SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE)
-            setSpan(StyleSpan(Typeface.BOLD_ITALIC), start, length, SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE)
+            setSpan(StyleSpan(Typeface.ITALIC), start, length, SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE)
             setSpan(ForegroundColorSpan(ColorUtils.setAlphaComponent(Color.WHITE, 210)), start, length,
                 SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
