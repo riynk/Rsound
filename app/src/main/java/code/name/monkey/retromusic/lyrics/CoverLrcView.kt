@@ -88,7 +88,8 @@ class CoverLrcView @JvmOverloads constructor(
         }
     }
 
-    private val viewScope = CoroutineScope(Dispatchers.Main + Job())
+    private var loadGeneration = 0
+    private var viewScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private val mSimpleOnGestureListener: SimpleOnGestureListener =
         object : SimpleOnGestureListener() {
@@ -298,10 +299,11 @@ class CoverLrcView @JvmOverloads constructor(
     fun loadLrc(lrcFile: File) {
         runOnUi {
             reset()
+            val requestGeneration = loadGeneration
             viewScope.launch(Dispatchers.IO) {
                 val lrcEntries = LrcUtils.parseLrc(arrayOf(lrcFile, null))
                 withContext(Dispatchers.Main) {
-                    onLrcLoaded(lrcEntries)
+                    if (requestGeneration == loadGeneration) onLrcLoaded(lrcEntries)
                 }
             }
         }
@@ -310,10 +312,11 @@ class CoverLrcView @JvmOverloads constructor(
     fun loadLrc(lrcText: String?) {
         runOnUi {
             reset()
+            val requestGeneration = loadGeneration
             viewScope.launch(Dispatchers.IO) {
                 val lrcEntries = LrcUtils.parseLrc(arrayOf(lrcText, null))
                 withContext(Dispatchers.Main) {
-                    onLrcLoaded(lrcEntries)
+                    if (requestGeneration == loadGeneration) onLrcLoaded(lrcEntries)
                 }
             }
         }
@@ -508,7 +511,15 @@ class CoverLrcView @JvmOverloads constructor(
         }
     }
 
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        if (!viewScope.isActive) {
+            viewScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+        }
+    }
+
     override fun onDetachedFromWindow() {
+        loadGeneration++
         removeCallbacks(hideTimelineRunnable)
         viewScope.cancel()
         super.onDetachedFromWindow()
@@ -543,6 +554,7 @@ class CoverLrcView @JvmOverloads constructor(
     }
 
     fun reset() {
+        loadGeneration++
         endAnimation()
         mScroller!!.forceFinished(true)
         isShowTimeline = false

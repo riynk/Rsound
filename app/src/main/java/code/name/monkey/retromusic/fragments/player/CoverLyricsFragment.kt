@@ -119,8 +119,16 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
                 updateLyrics()
             } else {
                 progressViewUpdateHelper?.stop()
-                binding.root.isVisible = false
+                translationJob?.cancel()
+                translationJob = null
+                translatedLines = emptyList()
+                lyrics = null
                 ttmlDocument = null
+                displayedLine = null
+                displayedLineIndex = -1
+                binding.playerLyricsLine1.text = null
+                binding.playerLyricsLine2.text = null
+                binding.root.isVisible = false
             }
         }
     }
@@ -138,6 +146,9 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        displayedLine = null
+        displayedLineIndex = -1
+        clearTranslation()
         if (PreferenceUtil.showLyrics) {
             updateLyrics()
         }
@@ -145,6 +156,16 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
 
     private fun updateLyrics() {
         lyrics = null
+        ttmlDocument = null
+        displayedLine = null
+        displayedLineIndex = -1
+        if (_binding != null) {
+            lyricsLayout.animate().cancel()
+            lyricsLine1.text = null
+            lyricsLine2.text = null
+            lyricsLine1.isVisible = false
+            lyricsLine2.isVisible = false
+        }
         val song = MusicPlayerRemote.currentSong
         val requestToken = ++lyricsLoadToken
         lifecycleScope.launch {
@@ -203,6 +224,7 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
             binding.playerLyricsFormat.isVisible = !result?.first?.second.isNullOrBlank()
             binding.playerLyricsTranslate.isVisible = !result?.first?.second.isNullOrBlank()
             binding.playerLyricsFormat.isClickable = result?.first?.third == true
+            onUpdateProgressViews(MusicPlayerRemote.position, MusicPlayerRemote.songDurationMillis)
         }
     }
 
@@ -346,7 +368,11 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
         progressViewUpdateHelper?.stop()
         lyricsLoadToken++
         translationJob?.cancel()
+        translationJob = null
+        lyrics = null
         ttmlDocument = null
+        displayedLine = null
+        displayedLineIndex = -1
         _binding = null
     }
 }

@@ -46,13 +46,45 @@ public final class TtmlUtils {
         if (TextUtils.isEmpty(content)) return false;
         String value = content.trim();
         if (value.startsWith("\uFEFF")) value = value.substring(1).trim();
-        String lower = value.toLowerCase(Locale.ROOT);
-        return lower.startsWith("<?xml") || lower.startsWith("<tt") ||
-                lower.contains(":tt ") || lower.contains("<tt ");
+        try {
+            XmlPullParserFactory factory = XmlPullParserFactory.newInstance();
+            factory.setNamespaceAware(true);
+            XmlPullParser parser = factory.newPullParser();
+            parser.setInput(new StringReader(value));
+            int event = parser.getEventType();
+            while (event != XmlPullParser.END_DOCUMENT) {
+                if (event == XmlPullParser.START_TAG) {
+                    return "tt".equals(parser.getName());
+                }
+                event = parser.next();
+            }
+        } catch (Exception ignored) {
+            // Invalid XML is not a TTML lyric document.
+        }
+        return false;
     }
 
     public static List<LrcEntry> parseTtml(String content) {
-        return parseDocument(content).entries;
+        return copyEntries(parseDocument(content).entries);
+    }
+
+    /** Return independent view entries; translations/layouts must never mutate cached parse data. */
+    private static List<LrcEntry> copyEntries(List<LrcEntry> source) {
+        List<LrcEntry> copies = new ArrayList<>(source.size());
+        for (LrcEntry original : source) {
+            LrcEntry copy = new LrcEntry(original.getTime(), original.getText(), original.getSecondText());
+            copy.setSpeaker(original.getSpeaker());
+            List<LrcEntry.WordTiming> timings = new ArrayList<>();
+            for (LrcEntry.WordTiming word : original.getWordTimings()) {
+                timings.add(new LrcEntry.WordTiming(
+                    word.start, word.end, word.startIndex, word.endIndex,
+                    word.background, word.continuesWord, word.sustained
+                ));
+            }
+            copy.setWordTimings(timings);
+            copies.add(copy);
+        }
+        return copies;
     }
 
     private static List<LrcEntry> parseTtmlUncached(String content) {
@@ -290,9 +322,7 @@ public final class TtmlUtils {
                 result.append(entry.getShowText());
                 int lineEnd = result.length();
                 Layout.Alignment alignment = "v2".equalsIgnoreCase(entry.getSpeaker())
-                    ? Layout.Alignment.ALIGN_OPPOSITE
-                    : (entry.getSpeaker() == null
-                        ? Layout.Alignment.ALIGN_CENTER : Layout.Alignment.ALIGN_NORMAL);
+                    ? Layout.Alignment.ALIGN_OPPOSITE : Layout.Alignment.ALIGN_NORMAL;
                 result.setSpan(new AlignmentSpan.Standard(alignment), lineStart, lineEnd,
                     SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE);
 

@@ -102,7 +102,7 @@ class LrcEntry implements Comparable<LrcEntry> {
 
   void setSpeaker(String speaker) {
     this.speaker = speaker;
-    if ("v2".equalsIgnoreCase(speaker)) textGravity = GRAVITY_RIGHT;
+    textGravity = "v2".equalsIgnoreCase(speaker) ? GRAVITY_RIGHT : GRAVITY_LEFT;
   }
 
   String getSpeaker() {

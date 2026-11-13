@@ -178,6 +178,7 @@ class PlayerAlbumCoverFragment : AbsMusicServiceFragment(R.layout.fragment_playe
     }
 
     override fun onUpdateProgressViews(progress: Int, total: Int) {
+        if (_binding == null) return
         binding.lyricsView.updateTime(progress.toLong())
     }
 
@@ -249,6 +250,9 @@ class PlayerAlbumCoverFragment : AbsMusicServiceFragment(R.layout.fragment_playe
         maybeInitLyrics()
         PreferenceManager.getDefaultSharedPreferences(requireContext())
             .registerOnSharedPreferenceChangeListener(this)
+        if (PreferenceUtil.showLyrics && PreferenceUtil.lyricsType == CoverLyricsType.REPLACE_COVER) {
+            updateLyrics()
+        }
     }
 
     override fun onDestroyView() {
@@ -288,6 +292,7 @@ class PlayerAlbumCoverFragment : AbsMusicServiceFragment(R.layout.fragment_playe
             SHOW_LYRICS -> {
                 if (PreferenceUtil.showLyrics) {
                     maybeInitLyrics()
+                    if (PreferenceUtil.lyricsType == CoverLyricsType.REPLACE_COVER) updateLyrics()
                 } else {
                     showLyrics(false)
                     progressViewUpdateHelper?.stop()
@@ -295,6 +300,9 @@ class PlayerAlbumCoverFragment : AbsMusicServiceFragment(R.layout.fragment_playe
             }
             LYRICS_TYPE -> {
                 maybeInitLyrics()
+                if (PreferenceUtil.showLyrics && PreferenceUtil.lyricsType == CoverLyricsType.REPLACE_COVER) {
+                    updateLyrics()
+                }
             }
         }
     }
