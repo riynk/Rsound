@@ -1,0 +1,142 @@
+
+name: Replace Repository from ZIP
+
+on:
+  workflow_dispatch:
+    inputs:
+      zip_url:
+        description: "Direct download URL of repository ZIP"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: replace-repository-main
+  cancel-in-progress: false
+
+jobs:
+  replace:
+    name: Replace repository contents
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+
+      - name: Download ZIP
+        env:
+          ZIP_URL: ${{ inputs.zip_url }}
+        run: |
+          set -euo pipefail
+
+          curl --fail --location \
+            --retry 3 \
+            --max-time 600 \
+            "$ZIP_URL" \
+            -o "$RUNNER_TEMP/source.zip"
+
+          python3 -c \
+            "import zipfile; assert zipfile.is_zipfile('$RUNNER_TEMP/source.zip'), 'Invalid ZIP archive'"
+
+      - name: Extract and validate
+        run: |
+          set -euo pipefail
+
+          mkdir -p "$RUNNER_TEMP/extracted"
+
+          python3 - "$RUNNER_TEMP/source.zip" "$RUNNER_TEMP/extracted" <<'PY'
+          import sys
+          import zipfile
+          from pathlib import Path, PurePosixPath
+
+          archive = Path(sys.argv[1])
+          destination = Path(sys.argv[2])
+
+          with zipfile.ZipFile(archive) as z:
+              for info in z.infolist():
+                  name = info.filename
+
+                  if "\\" in name:
+                      raise SystemExit("Invalid ZIP path")
+
+                  path = PurePosixPath(name)
+
+                  if path.is_absolute() or ".." in path.parts:
+                      raise SystemExit("Unsafe ZIP path")
+
+                  if ".git" in path.parts:
+                      raise SystemExit("ZIP must not contain .git")
+
+                  mode = info.external_attr >> 16
+                  if mode & 0o170000 == 0o120000:
+                      raise SystemExit("ZIP symlinks are not allowed")
+
+              z.extractall(destination)
+
+          items = [
+              p for p in destination.iterdir()
+              if p.name != "__MACOSX"
+          ]
+
+          if len(items) == 1 and items[0].is_dir():
+              source = items[0]
+          else:
+              source = destination
+
+          if not any(source.iterdir()):
+              raise SystemExit("ZIP contains no repository files")
+
+          (Path(sys.argv[2]) / "source-location.txt").write_text(
+              str(source)
+          )
+          PY
+
+      - name: Replace repository files
+        run: |
+          set -euo pipefail
+
+          SOURCE=$(cat "$RUNNER_TEMP/extracted/source-location.txt")
+
+          PRESERVE="$RUNNER_TEMP/replace-from-zip.yml"
+
+          cp .github/workflows/replace-from-zip.yml "$PRESERVE"
+
+          rsync -a --delete \
+            --exclude='.git/' \
+            "$SOURCE/" "$GITHUB_WORKSPACE/"
+
+          mkdir -p .github/workflows
+          cp "$PRESERVE" .github/workflows/replace-from-zip.yml
+
+      - name: Audit changes
+        run: |
+          set -euo pipefail
+
+          git status --short
+          git diff --stat
+
+          test -d .git
+          test -f .github/workflows/replace-from-zip.yml
+
+      - name: Commit and push
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No changes detected."
+            exit 0
+          fi
+
+          git commit -m "Replace repository from ZIP"
+
+          git push origin HEAD:main
