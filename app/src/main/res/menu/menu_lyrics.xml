@@ -12,6 +12,11 @@
         android:title="@string/download_lyrics"
         app:showAsAction="ifRoom" />
     <item
+        android:id="@+id/action_translate_lyrics"
+        android:icon="@drawable/ic_language"
+        android:title="@string/translate_lyrics"
+        app:showAsAction="ifRoom" />
+    <item
         android:id="@+id/action_lyrics_format"
         android:icon="@drawable/ic_ttml"
         android:title="@string/switch_to_ttml"

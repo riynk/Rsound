@@ -383,6 +383,12 @@ public class LrcView extends View {
                 });
     }
 
+    /** Returns the plain text of the currently synchronized lyric line. */
+    public String getCurrentLineText() {
+        if (!hasLrc() || mCurrentLine < 0 || mCurrentLine >= mLrcEntryList.size()) return "";
+        return mLrcEntryList.get(mCurrentLine).getText();
+    }
+
     public boolean hasLrc() {
         return !mLrcEntryList.isEmpty();
     }

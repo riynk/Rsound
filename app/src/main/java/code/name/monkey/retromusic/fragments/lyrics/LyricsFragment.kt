@@ -43,6 +43,7 @@ import code.name.monkey.retromusic.fragments.base.AbsMainActivityFragment
 import code.name.monkey.retromusic.helper.MusicPlayerRemote
 import code.name.monkey.retromusic.helper.MusicProgressViewUpdateHelper
 import code.name.monkey.retromusic.lyrics.LrcView
+import code.name.monkey.retromusic.lyrics.LyricsTranslation
 import code.name.monkey.retromusic.model.AudioTagInfo
 import code.name.monkey.retromusic.model.Song
 import code.name.monkey.retromusic.network.OnlineLyricsRepository
@@ -50,6 +51,7 @@ import code.name.monkey.retromusic.util.FileUtils
 import code.name.monkey.retromusic.util.LyricUtil
 import code.name.monkey.retromusic.util.UriUtil
 import com.afollestad.materialdialogs.input.input
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -76,6 +78,11 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
 
     private var lyricsType: LyricsType = LyricsType.NORMAL_LYRICS
     private var useTtmlLyrics = false
+    private var translationEnabled = false
+    private var translationSource = "en"
+    private var translationTarget = "id"
+    private var translationLine = ""
+    private var translationJob: Job? = null
 
     private val googleSearchLrcUrl: String
         get() {
@@ -139,6 +146,45 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
 
     override fun onUpdateProgressViews(progress: Int, total: Int) {
         binding.lyricsView.updateTime(progress.toLong())
+        updateTranslatedLine(binding.lyricsView.currentLineText)
+    }
+
+    private fun openTranslationSettings() {
+        LyricsTranslation.showSettings(requireContext(), translationSource, translationTarget) { source, target ->
+            translationSource = source
+            translationTarget = target
+            translationEnabled = true
+            translationLine = ""
+            updateTranslatedLine(binding.lyricsView.currentLineText)
+        }
+    }
+
+    private fun updateTranslatedLine(line: String) {
+        if (!translationEnabled || line.isBlank() || line == translationLine) return
+        translationLine = line
+        translationJob?.cancel()
+        binding.translatedLyrics.text = getString(R.string.translation_loading)
+        binding.translatedLyrics.isVisible = true
+        val requestedSong = song
+        val source = translationSource
+        val target = translationTarget
+        translationJob = viewLifecycleOwner.lifecycleScope.launch {
+            val result = runCatching {
+                withContext(Dispatchers.IO) { LyricsTranslation.translate(line, source, target) }
+            }
+            if (!isAdded || requestedSong.data != MusicPlayerRemote.currentSong.data ||
+                !translationEnabled || translationLine != line) return@launch
+            binding.translatedLyrics.text = result.getOrElse {
+                getString(R.string.translation_failed)
+            }
+        }
+    }
+
+    private fun clearTranslation() {
+        translationJob?.cancel()
+        translationLine = ""
+        binding.translatedLyrics.text = null
+        binding.translatedLyrics.isVisible = false
     }
 
     private fun setupViews() {
@@ -158,6 +204,7 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
     override fun onPlayingMetaChanged() {
         super.onPlayingMetaChanged()
         useTtmlLyrics = false
+        clearTranslation()
         updateTitleSong()
         loadLyrics()
     }
@@ -200,6 +247,10 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
         return when (item.itemId) {
             R.id.action_search -> {
                 openUrl(googleSearchLrcUrl)
+                true
+            }
+            R.id.action_translate_lyrics -> {
+                openTranslationSettings()
                 true
             }
             R.id.action_lyrics_format -> {

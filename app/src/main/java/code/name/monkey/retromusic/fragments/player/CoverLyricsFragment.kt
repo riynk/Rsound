@@ -24,10 +24,12 @@ import code.name.monkey.retromusic.model.lyrics.Lyrics
 import code.name.monkey.retromusic.util.LyricUtil
 import code.name.monkey.retromusic.util.PreferenceUtil
 import code.name.monkey.retromusic.util.color.MediaNotificationProcessor
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import code.name.monkey.retromusic.lyrics.TtmlUtils
+import code.name.monkey.retromusic.lyrics.LyricsTranslation
 import org.jaudiotagger.audio.exceptions.CannotReadException
 import java.io.File
 import java.io.FileNotFoundException
@@ -46,6 +48,11 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
     private var useTtmlLyrics = false
     private var lyricsLoadToken = 0
     private var ttmlDocument: TtmlUtils.ParsedDocument? = null
+    private var translationEnabled = false
+    private var translationSource = "en"
+    private var translationTarget = "id"
+    private var translationLine = ""
+    private var translationJob: Job? = null
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -58,6 +65,15 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
         val nps = PreferenceUtil.nowPlayingScreen
         if (nps == NowPlayingScreen.Fit || nps == NowPlayingScreen.Full) {
             binding.root.background = null
+        }
+        binding.playerLyricsTranslate.setOnClickListener {
+            LyricsTranslation.showSettings(requireContext(), translationSource, translationTarget) { source, target ->
+                translationSource = source
+                translationTarget = target
+                translationEnabled = true
+                translationLine = ""
+                updateTranslatedLine(lyricsLine2.text.toString())
+            }
         }
         binding.playerLyricsLine2.setOnClickListener {
             goToLyrics(requireActivity())
@@ -81,6 +97,7 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
             playerLyricsLine2.setTextColor(color.primaryTextColor)
             playerLyricsLine2.setShadowLayer(dipToPix(10f), 0f, 0f, color.backgroundColor)
             playerLyricsFormat.setTextColor(color.primaryTextColor)
+            playerLyricsTranslated.setTextColor(color.primaryTextColor)
         }
 
     }
@@ -102,6 +119,7 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
     override fun onPlayingMetaChanged() {
         super.onPlayingMetaChanged()
         useTtmlLyrics = false
+        clearTranslation()
         if (PreferenceUtil.showLyrics) {
             updateLyrics()
         }
@@ -192,6 +210,7 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
         val document = ttmlDocument
         val oldLine = lyricsLine2.text.toString()
         val line = document?.getPlainLine(progress.toLong()) ?: synchronizedLyrics.getLine(progress)
+        updateTranslatedLine(line)
         val karaokeText = document?.getKaraokeText(
             progress.toLong(),
             lyricsLine2.currentTextColor,
@@ -228,6 +247,36 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
         }
     }
 
+    private fun updateTranslatedLine(line: String) {
+        if (!translationEnabled || line.isBlank() || line == translationLine) return
+        translationLine = line
+        translationJob?.cancel()
+        binding.playerLyricsTranslated.text = getString(R.string.translation_loading)
+        binding.playerLyricsTranslated.isVisible = true
+        val requestedSong = MusicPlayerRemote.currentSong
+        val source = translationSource
+        val target = translationTarget
+        translationJob = lifecycleScope.launch {
+            val result = runCatching {
+                withContext(Dispatchers.IO) { LyricsTranslation.translate(line, source, target) }
+            }
+            if (_binding == null || requestedSong.data != MusicPlayerRemote.currentSong.data ||
+                !translationEnabled || translationLine != line) return@launch
+            binding.playerLyricsTranslated.text = result.getOrElse {
+                getString(R.string.translation_failed)
+            }
+        }
+    }
+
+    private fun clearTranslation() {
+        translationJob?.cancel()
+        translationLine = ""
+        if (_binding != null) {
+            binding.playerLyricsTranslated.text = null
+            binding.playerLyricsTranslated.isVisible = false
+        }
+    }
+
     private fun isLyricsLayoutVisible(): Boolean {
         return lyrics != null && lyrics!!.isSynchronized && lyrics!!.isValid
     }
@@ -257,6 +306,7 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
             .unregisterOnSharedPreferenceChangeListener(this)
         progressViewUpdateHelper?.stop()
         lyricsLoadToken++
+        translationJob?.cancel()
         ttmlDocument = null
         _binding = null
     }

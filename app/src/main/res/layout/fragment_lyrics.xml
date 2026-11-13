@@ -69,6 +69,21 @@
             app:lrcTextGravity="left"
             app:lrcTextSize="28sp" />
 
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/translatedLyrics"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center_horizontal"
+            android:layout_marginHorizontal="24dp"
+            android:layout_marginBottom="28dp"
+            android:background="?attr/colorSurface"
+            android:gravity="center"
+            android:padding="12dp"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="16sp"
+            android:textStyle="italic"
+            android:visibility="gone" />
+
         <TextView
             android:id="@+id/noLyricsFound"
             android:layout_width="match_parent"
