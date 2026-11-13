@@ -201,6 +201,7 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
             if (translationEnabled) prepareTranslations()
             binding.playerLyricsFormat.text = result?.first?.second.orEmpty()
             binding.playerLyricsFormat.isVisible = !result?.first?.second.isNullOrBlank()
+            binding.playerLyricsTranslate.isVisible = !result?.first?.second.isNullOrBlank()
             binding.playerLyricsFormat.isClickable = result?.first?.third == true
         }
     }
@@ -248,6 +249,13 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
             lyricsLine2.animate().alpha(1f).translationY(0f).duration =
                 AbsPlayerFragment.VISIBILITY_ANIM_DURATION
         } else {
+            if (displayedLine != null) {
+                val previousRow = withTranslation(
+                    displayedLine!!,
+                    translatedLines.getOrNull(displayedLineIndex)
+                )
+                if (lyricsLine1.text != previousRow) lyricsLine1.text = previousRow
+            }
             lyricsLine2.text = withTranslation(karaokeText ?: line, translatedLines.getOrNull(lineIndex))
             lyricsLine2.isVisible = true
             if (displayedLine == null) {

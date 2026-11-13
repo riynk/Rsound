@@ -594,6 +594,7 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
             mainActivity.expandPanel()
         translationJob?.cancel()
         translationJob = null
+        translatedLines = emptyList()
         _binding = null
     }
 

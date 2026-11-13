@@ -130,7 +130,9 @@ class PlayerAlbumCoverFragment : AbsMusicServiceFragment(R.layout.fragment_playe
             }
             if (_binding == null || requestToken != lyricsLoadToken) return@launch
             binding.playerLyricsFormat.text = result.third
-            binding.playerLyricsFormat.isVisible = PreferenceUtil.lyricsType == CoverLyricsType.REPLACE_COVER && result.third.isNotBlank()
+            val replaceCover = PreferenceUtil.lyricsType == CoverLyricsType.REPLACE_COVER
+            binding.playerLyricsTranslate.isVisible = PreferenceUtil.showLyrics && replaceCover && result.third.isNotBlank()
+            binding.playerLyricsFormat.isVisible = PreferenceUtil.showLyrics && replaceCover && result.third.isNotBlank()
             binding.playerLyricsFormat.isClickable = hasLrcFormat && hasTtmlFormat
             if (result.first != null) {
                 lrcView.loadLrc(result.first)
@@ -403,6 +405,8 @@ class PlayerAlbumCoverFragment : AbsMusicServiceFragment(R.layout.fragment_playe
         val TAG: String = PlayerAlbumCoverFragment::class.java.simpleName
     }
 
-    private val lyricViewNpsList =
-        listOf(Blur, Classic, Color, Flat, Material, MD3, Normal, Plain, Simple)
+    private val lyricViewNpsList = listOf(
+        Adaptive, Blur, BlurCard, Card, Classic, Color, Fit, Flat, Full, Gradient,
+        Home, Material, MD3, Normal, Plain, Simple
+    )
 }
