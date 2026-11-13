@@ -28,7 +28,7 @@ enum class NowPlayingScreen constructor(
     // Some Now playing themes look better with particular Album cover theme
 
     Adaptive(R.string.adaptive, R.drawable.np_adaptive, 10, AlbumCoverStyle.FullCard),
-    Blur(R.string.blur, R.drawable.np_blur, 4, AlbumCoverStyle.Normal),
+    Blur(R.string.default_now_playing, R.drawable.np_blur, 4, AlbumCoverStyle.Normal),
     BlurCard(R.string.blur_card, R.drawable.np_blur_card, 9, AlbumCoverStyle.Card),
     Card(R.string.card, R.drawable.np_card, 6, AlbumCoverStyle.Full),
     Circle(R.string.circle, R.drawable.np_minimalistic_circle, 15, null),

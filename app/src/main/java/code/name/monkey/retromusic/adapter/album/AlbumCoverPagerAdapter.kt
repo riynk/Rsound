@@ -15,7 +15,9 @@
 package code.name.monkey.retromusic.adapter.album
 
 import android.os.Bundle
+import android.view.GestureDetector
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -28,6 +30,7 @@ import code.name.monkey.retromusic.R
 import code.name.monkey.retromusic.activities.MainActivity
 import code.name.monkey.retromusic.fragments.AlbumCoverStyle
 import code.name.monkey.retromusic.fragments.NowPlayingScreen.*
+import code.name.monkey.retromusic.fragments.player.PlayerAlbumCoverFragment
 import code.name.monkey.retromusic.fragments.base.goToLyrics
 import code.name.monkey.retromusic.glide.RetroGlideExtension
 import code.name.monkey.retromusic.glide.RetroGlideExtension.asBitmapPalette
@@ -118,11 +121,27 @@ class AlbumCoverPagerAdapter(
             savedInstanceState: Bundle?
         ): View? {
             val view = inflater.inflate(getLayoutWithPlayerTheme(), container, false)
-            view.setOnClickListener {
-                if (mainActivity.getBottomSheetBehavior().state == STATE_EXPANDED) {
-                    showLyricsDialog()
+            val gestureDetector = GestureDetector(
+                requireContext(),
+                object : GestureDetector.SimpleOnGestureListener() {
+                    override fun onDown(event: MotionEvent): Boolean = true
+
+                    override fun onSingleTapConfirmed(event: MotionEvent): Boolean {
+                        if (mainActivity.getBottomSheetBehavior().state == STATE_EXPANDED) {
+                            showLyricsDialog()
+                        }
+                        return true
+                    }
+
+                    override fun onDoubleTap(event: MotionEvent): Boolean {
+                        (parentFragmentManager.findFragmentById(R.id.playerAlbumCoverFragment)
+                                as? PlayerAlbumCoverFragment)
+                            ?.toggleArtworkFavorite(song.id)
+                        return true
+                    }
                 }
-            }
+            )
+            view.setOnTouchListener { _, event -> gestureDetector.onTouchEvent(event) }
             return view
         }
 

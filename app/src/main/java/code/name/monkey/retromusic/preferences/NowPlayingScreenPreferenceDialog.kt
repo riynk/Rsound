@@ -30,6 +30,7 @@ import code.name.monkey.appthemehelper.common.prefs.supportv7.ATEDialogPreferenc
 import code.name.monkey.retromusic.R
 import code.name.monkey.retromusic.databinding.PreferenceNowPlayingScreenItemBinding
 import code.name.monkey.retromusic.extensions.*
+import code.name.monkey.retromusic.fragments.NowPlayingScreen
 import code.name.monkey.retromusic.fragments.NowPlayingScreen.*
 import code.name.monkey.retromusic.util.PreferenceUtil
 import code.name.monkey.retromusic.util.ViewUtil
@@ -59,6 +60,7 @@ class NowPlayingScreenPreference @JvmOverloads constructor(
 class NowPlayingScreenPreferenceDialog : DialogFragment(), ViewPager.OnPageChangeListener {
 
     private var viewPagerPosition: Int = 0
+    private val availableScreens = listOf(Blur)
 
     override fun onPageScrollStateChanged(state: Int) {
     }
@@ -75,15 +77,15 @@ class NowPlayingScreenPreferenceDialog : DialogFragment(), ViewPager.OnPageChang
             .inflate(R.layout.preference_dialog_now_playing_screen, null)
         val viewPager = view.findViewById<ViewPager>(R.id.now_playing_screen_view_pager)
             ?: throw  IllegalStateException("Dialog view must contain a ViewPager with id 'now_playing_screen_view_pager'")
-        viewPager.adapter = NowPlayingScreenAdapter(requireContext())
+        viewPager.adapter = NowPlayingScreenAdapter(requireContext(), availableScreens)
         viewPager.addOnPageChangeListener(this)
         viewPager.pageMargin = ViewUtil.convertDpToPixel(32f, resources).toInt()
-        viewPager.currentItem = PreferenceUtil.nowPlayingScreen.ordinal
+        viewPager.currentItem = availableScreens.indexOf(PreferenceUtil.nowPlayingScreen).coerceAtLeast(0)
 
         return materialDialog(R.string.pref_title_now_playing_screen_appearance)
             .setCancelable(false)
             .setPositiveButton(R.string.set) { _, _ ->
-                val nowPlayingScreen = values()[viewPagerPosition]
+                val nowPlayingScreen = availableScreens[viewPagerPosition.coerceIn(0, availableScreens.lastIndex)]
                 PreferenceUtil.nowPlayingScreen = nowPlayingScreen
             }
             .setView(view)
@@ -98,10 +100,13 @@ class NowPlayingScreenPreferenceDialog : DialogFragment(), ViewPager.OnPageChang
     }
 }
 
-private class NowPlayingScreenAdapter(private val context: Context) : PagerAdapter() {
+private class NowPlayingScreenAdapter(
+    private val context: Context,
+    private val screens: List<NowPlayingScreen>
+) : PagerAdapter() {
 
     override fun instantiateItem(collection: ViewGroup, position: Int): Any {
-        val nowPlayingScreen = values()[position]
+        val nowPlayingScreen = screens[position]
 
         val inflater = LayoutInflater.from(context)
         val binding = PreferenceNowPlayingScreenItemBinding.inflate(inflater, collection, true)
@@ -120,7 +125,7 @@ private class NowPlayingScreenAdapter(private val context: Context) : PagerAdapt
     }
 
     override fun getCount(): Int {
-        return values().size
+        return screens.size
     }
 
     override fun isViewFromObject(view: View, instance: Any): Boolean {
@@ -128,6 +133,6 @@ private class NowPlayingScreenAdapter(private val context: Context) : PagerAdapt
     }
 
     override fun getPageTitle(position: Int): CharSequence {
-        return context.getString(values()[position].titleRes)
+        return context.getString(screens[position].titleRes)
     }
 }

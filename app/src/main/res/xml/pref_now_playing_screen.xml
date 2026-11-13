@@ -121,5 +121,15 @@
             app:ateKey_pref_unit="px"
             app:icon="@drawable/ic_blur_on"
             app:showSeekBarValue="true" />
+
+        <code.name.monkey.appthemehelper.common.prefs.supportv7.ATEListPreference
+            android:defaultValue="metadata"
+            android:entries="@array/blur_artwork_source_entries"
+            android:entryValues="@array/blur_artwork_source_values"
+            android:key="blur_artwork_source"
+            android:layout="@layout/list_item_view"
+            android:summary="@string/blur_artwork_source_summary"
+            android:title="@string/blur_artwork_source"
+            app:icon="@drawable/ic_blur_on" />
     </code.name.monkey.appthemehelper.common.prefs.supportv7.ATEPreferenceCategory>
 </androidx.preference.PreferenceScreen>

@@ -21,28 +21,33 @@ import android.view.animation.DecelerateInterpolator
 import android.widget.ImageButton
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import androidx.constraintlayout.widget.ConstraintSet
 import code.name.monkey.appthemehelper.util.ColorUtil
 import code.name.monkey.appthemehelper.util.MaterialValueHelper
 import code.name.monkey.appthemehelper.util.TintHelper
 import code.name.monkey.retromusic.R
 import code.name.monkey.retromusic.databinding.FragmentBlurPlayerPlaybackControlsBinding
 import code.name.monkey.retromusic.extensions.applyColor
+import code.name.monkey.retromusic.extensions.dipToPix
 import code.name.monkey.retromusic.extensions.getSongInfo
 import code.name.monkey.retromusic.extensions.hide
 import code.name.monkey.retromusic.extensions.show
 import code.name.monkey.retromusic.fragments.base.AbsPlayerControlsFragment
 import code.name.monkey.retromusic.fragments.base.goToAlbum
+import code.name.monkey.retromusic.fragments.base.goToArtist
 import code.name.monkey.retromusic.helper.MusicPlayerRemote
 import code.name.monkey.retromusic.util.ArtistSeparator
 import code.name.monkey.retromusic.util.PreferenceUtil
 import code.name.monkey.retromusic.util.color.MediaNotificationProcessor
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.slider.Slider
 
 class BlurPlaybackControlsFragment :
     AbsPlayerControlsFragment(R.layout.fragment_blur_player_playback_controls) {
     private var _binding: FragmentBlurPlayerPlaybackControlsBinding? = null
     private val binding get() = _binding!!
+    private var defaultConstraintSet: ConstraintSet? = null
+    private var requestedLyricsMode = false
+    private var lyricsMode = false
 
     override val progressSlider: Slider
         get() = binding.progressSlider
@@ -68,6 +73,8 @@ class BlurPlaybackControlsFragment :
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         _binding = FragmentBlurPlayerPlaybackControlsBinding.bind(view)
+        defaultConstraintSet = ConstraintSet().apply { clone(binding.root) }
+        applyLyricsMode(requestedLyricsMode)
         setUpPlayPauseFab()
         binding.title.isSelected = true
         binding.text.isSelected = true
@@ -80,30 +87,7 @@ class BlurPlaybackControlsFragment :
     }
     
     private fun handleArtistClick() {
-        val song = MusicPlayerRemote.currentSong
-        val artistNames = ArtistSeparator.split(song.artistName)
-
-        if (artistNames.size > 1) {
-            // Show dialog for multiple artists
-            MaterialAlertDialogBuilder(requireContext())
-                .setTitle(getString(R.string.go_to_artist))
-                .setItems(artistNames.toTypedArray()) { _, which ->
-                    // TODO: Navigate to artist details when artistByName() is implemented
-                    android.widget.Toast.makeText(
-                        requireContext(),
-                        getString(R.string.go_to_artist) + ": ${artistNames[which]}",
-                        android.widget.Toast.LENGTH_SHORT
-                    ).show()
-                }
-                .show()
-        } else if (artistNames.isNotEmpty()) {
-            // Single artist - direct action
-            android.widget.Toast.makeText(
-                requireContext(),
-                getString(R.string.go_to_artist) + ": ${artistNames[0]}",
-                android.widget.Toast.LENGTH_SHORT
-            ).show()
-        }
+        goToArtist(requireActivity())
     }
 
     private fun updateSong() {
@@ -111,9 +95,9 @@ class BlurPlaybackControlsFragment :
         binding.title.text = song.title
         
         val formattedArtistName = ArtistSeparator.split(song.artistName).joinToString(", ")
-        binding.text.text = String.format("%s • %s", formattedArtistName, song.albumName)
+        binding.text.text = formattedArtistName
 
-        if (PreferenceUtil.isSongInfo) {
+        if (PreferenceUtil.isSongInfo && !lyricsMode) {
             binding.songInfo.show()
             binding.songInfo.text = getSongInfo(song)
         } else {
@@ -212,8 +196,74 @@ class BlurPlaybackControlsFragment :
         }
     }
 
+    fun setLyricsMode(enabled: Boolean) {
+        requestedLyricsMode = enabled
+        if (_binding != null && defaultConstraintSet != null) {
+            applyLyricsMode(enabled)
+        }
+    }
+
+    private fun applyLyricsMode(enabled: Boolean) {
+        val defaults = defaultConstraintSet ?: return
+        lyricsMode = enabled
+        if (!enabled) {
+            defaults.applyTo(binding.root)
+            updateSong()
+            return
+        }
+
+        val constraints = ConstraintSet().apply { clone(defaults) }
+        val smallGap = dipToPix(4f)
+        val controlGap = dipToPix(8f)
+        constraints.setVisibility(R.id.songInfo, View.GONE)
+
+        constraints.clear(R.id.playPauseButton, ConstraintSet.TOP)
+        constraints.connect(
+            R.id.playPauseButton, ConstraintSet.TOP,
+            R.id.progressSlider, ConstraintSet.BOTTOM, controlGap
+        )
+        constraints.clear(R.id.playPauseButton, ConstraintSet.BOTTOM)
+        constraints.connect(
+            R.id.playPauseButton, ConstraintSet.BOTTOM,
+            R.id.volumeFragmentContainer, ConstraintSet.TOP, controlGap
+        )
+
+        constraints.clear(R.id.volumeFragmentContainer, ConstraintSet.TOP)
+        constraints.connect(
+            R.id.volumeFragmentContainer, ConstraintSet.TOP,
+            R.id.playPauseButton, ConstraintSet.BOTTOM, controlGap
+        )
+        constraints.clear(R.id.volumeFragmentContainer, ConstraintSet.BOTTOM)
+        constraints.connect(
+            R.id.volumeFragmentContainer, ConstraintSet.BOTTOM,
+            R.id.title, ConstraintSet.TOP, smallGap
+        )
+
+        constraints.clear(R.id.title, ConstraintSet.TOP)
+        constraints.connect(
+            R.id.title, ConstraintSet.TOP,
+            R.id.volumeFragmentContainer, ConstraintSet.BOTTOM, smallGap
+        )
+        constraints.clear(R.id.title, ConstraintSet.BOTTOM)
+        constraints.connect(R.id.title, ConstraintSet.BOTTOM, R.id.text, ConstraintSet.TOP)
+
+        constraints.clear(R.id.text, ConstraintSet.TOP)
+        constraints.connect(R.id.text, ConstraintSet.TOP, R.id.title, ConstraintSet.BOTTOM)
+        constraints.clear(R.id.text, ConstraintSet.BOTTOM)
+        constraints.connect(
+            R.id.text, ConstraintSet.BOTTOM,
+            ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM, smallGap
+        )
+
+        constraints.setVerticalChainStyle(R.id.playPauseButton, ConstraintSet.CHAIN_PACKED)
+        constraints.setVerticalBias(R.id.playPauseButton, 0.8f)
+        constraints.applyTo(binding.root)
+        updateSong()
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
+        defaultConstraintSet = null
         _binding = null
     }
 }

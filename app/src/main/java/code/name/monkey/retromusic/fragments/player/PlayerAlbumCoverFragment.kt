@@ -424,6 +424,12 @@ class PlayerAlbumCoverFragment : AbsMusicServiceFragment(R.layout.fragment_playe
         callbacks = listener
     }
 
+    fun toggleArtworkFavorite(songId: Long) {
+        if (MusicPlayerRemote.currentSong.id == songId) {
+            callbacks?.onFavoriteToggled()
+        }
+    }
+
     interface Callbacks {
 
         fun onColorChanged(color: MediaNotificationProcessor)
@@ -435,8 +441,5 @@ class PlayerAlbumCoverFragment : AbsMusicServiceFragment(R.layout.fragment_playe
         val TAG: String = PlayerAlbumCoverFragment::class.java.simpleName
     }
 
-    private val lyricViewNpsList = listOf(
-        Adaptive, Blur, BlurCard, Card, Classic, Color, Fit, Flat, Full, Gradient,
-        Material, MD3, Normal, Plain, Simple
-    )
+    private val lyricViewNpsList = listOf(Blur)
 }

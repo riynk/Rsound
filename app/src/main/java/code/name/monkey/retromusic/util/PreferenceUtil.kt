@@ -66,6 +66,7 @@ import code.name.monkey.retromusic.LYRICS_OPTIONS
 import code.name.monkey.retromusic.LYRICS_TYPE
 import code.name.monkey.retromusic.MANAGE_AUDIO_FOCUS
 import code.name.monkey.retromusic.MATERIAL_YOU
+import code.name.monkey.retromusic.BLUR_ARTWORK_SOURCE
 import code.name.monkey.retromusic.NEW_BLUR_AMOUNT
 import code.name.monkey.retromusic.NEXT_SLEEP_TIMER_ELAPSED_REALTIME
 import code.name.monkey.retromusic.NOW_PLAYING_SCREEN_ID
@@ -399,6 +400,9 @@ object PreferenceUtil {
 
     val blurAmount get() = sharedPreferences.getInt(NEW_BLUR_AMOUNT, 25)
 
+    val blurArtworkSource
+        get() = sharedPreferences.getString(BLUR_ARTWORK_SOURCE, "metadata") ?: "metadata"
+
     val isCarouselEffect
         get() = sharedPreferences.getBoolean(
             CAROUSEL_EFFECT, false
@@ -673,18 +677,14 @@ object PreferenceUtil {
 
     var nowPlayingScreen: NowPlayingScreen
         get() {
-            val id: Int = sharedPreferences.getInt(NOW_PLAYING_SCREEN_ID, 0)
-            for (nowPlayingScreen in NowPlayingScreen.values()) {
-                if (nowPlayingScreen.id == id) {
-                    return nowPlayingScreen
-                }
+            val selectedId = sharedPreferences.getInt(NOW_PLAYING_SCREEN_ID, NowPlayingScreen.Blur.id)
+            if (selectedId != NowPlayingScreen.Blur.id) {
+                sharedPreferences.edit { putInt(NOW_PLAYING_SCREEN_ID, NowPlayingScreen.Blur.id) }
             }
-            return NowPlayingScreen.Adaptive
+            return NowPlayingScreen.Blur
         }
-        set(value) = sharedPreferences.edit {
-            putInt(NOW_PLAYING_SCREEN_ID, value.id)
-            // Also set a cover theme for that now playing
-            value.defaultCoverTheme?.let { coverTheme -> albumCoverStyle = coverTheme }
+        set(@Suppress("UNUSED_PARAMETER") value) = sharedPreferences.edit {
+            putInt(NOW_PLAYING_SCREEN_ID, NowPlayingScreen.Blur.id)
         }
 
     val albumCoverTransform: ViewPager.PageTransformer
