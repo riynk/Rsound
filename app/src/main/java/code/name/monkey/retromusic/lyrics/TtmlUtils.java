@@ -198,8 +198,8 @@ public final class TtmlUtils {
                 int lineEnd = result.length();
                 Layout.Alignment alignment = "v2".equalsIgnoreCase(entry.getSpeaker())
                     ? Layout.Alignment.ALIGN_OPPOSITE
-                    : ("v1".equalsIgnoreCase(entry.getSpeaker())
-                        ? Layout.Alignment.ALIGN_NORMAL : Layout.Alignment.ALIGN_CENTER);
+                    : (entry.getSpeaker() == null
+                        ? Layout.Alignment.ALIGN_CENTER : Layout.Alignment.ALIGN_NORMAL);
                 result.setSpan(new AlignmentSpan.Standard(alignment), lineStart, lineEnd,
                     SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE);
 
