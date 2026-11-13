@@ -291,7 +291,7 @@ class LrcEntry implements Comparable<LrcEntry> {
 
   private CharSequence buildDisplayText(CharSequence source, int translationColor) {
     SpannableStringBuilder styled = new SpannableStringBuilder(source);
-    if (!TextUtils.isEmpty(secondText)) {
+    if (ttml && !TextUtils.isEmpty(secondText)) {
       int backgroundStart = text.length() + 1;
       int backgroundEnd = Math.min(styled.length(), backgroundStart + secondText.length());
       if (backgroundEnd > backgroundStart) {
