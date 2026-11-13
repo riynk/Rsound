@@ -409,6 +409,6 @@ class PlayerAlbumCoverFragment : AbsMusicServiceFragment(R.layout.fragment_playe
 
     private val lyricViewNpsList = listOf(
         Adaptive, Blur, BlurCard, Card, Classic, Color, Fit, Flat, Full, Gradient,
-        Home, Material, MD3, Normal, Plain, Simple
+        Material, MD3, Normal, Plain, Simple
     )
 }

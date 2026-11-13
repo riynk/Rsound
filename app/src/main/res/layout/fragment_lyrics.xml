@@ -78,9 +78,10 @@
             android:layout_height="match_parent"
             app:layout_behavior="com.google.android.material.appbar.AppBarLayout$ScrollingViewBehavior"
             app:lrcLabel="@string/no_lyrics_found"
+            app:lrcNormalTextColor="@color/md_grey_200"
             app:lrcNormalTextSize="24sp"
             app:lrcPadding="8dp"
-            app:lrcTextGravity="left"
+            app:lrcTextGravity="center"
             app:lrcTextSize="28sp" />
 
         <com.google.android.material.textview.MaterialTextView
