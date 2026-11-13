@@ -53,6 +53,7 @@ public final class TtmlUtils {
                 if (event == XmlPullParser.START_TAG && "p".equals(parser.getName())) {
                     long parsedParagraphStart = parseTime(attribute(parser, "begin"));
                     long paragraphStart = Math.max(0L, parsedParagraphStart);
+                    String speaker = attribute(parser, "agent");
 
                     StringBuilder text = new StringBuilder();
                     List<LrcEntry.WordTiming> words = new ArrayList<>();
@@ -71,7 +72,9 @@ public final class TtmlUtils {
                                     text.length(),
                                     parseTime(attribute(parser, "begin")),
                                     parseTime(attribute(parser, "end")),
-                                    parseTime(attribute(parser, "dur"))
+                                    parseTime(attribute(parser, "dur")),
+                                    "x-bg".equals(attribute(parser, "role")) ||
+                                        (!spans.isEmpty() && spans.peek().background)
                                 ));
                             } else if ("br".equals(tag)) {
                                 text.append('\n');
@@ -91,7 +94,8 @@ public final class TtmlUtils {
                                         ? paragraphStart + span.end
                                         : (span.duration >= 0 ? wordStart + span.duration : -1L);
                                     words.add(new LrcEntry.WordTiming(
-                                        wordStart, wordEnd, span.startIndex, spanEnd
+                                        wordStart, wordEnd, span.startIndex, spanEnd,
+                                        span.background
                                     ));
                                     if (!spans.isEmpty()) spans.peek().hasTimedChild = true;
                                 }
@@ -115,7 +119,7 @@ public final class TtmlUtils {
                             int to = Math.min(line.length(), word.endIndex - trimStart);
                             if (to > from) {
                                 normalized.add(new LrcEntry.WordTiming(
-                                    word.start, word.end, from, to
+                                    word.start, word.end, from, to, word.background
                                 ));
                             }
                         }
@@ -134,6 +138,7 @@ public final class TtmlUtils {
                             : (!normalized.isEmpty() ? normalized.get(0).start : 0L);
                         LrcEntry entry = new LrcEntry(lineStart, line);
                         entry.setWordTimings(normalized);
+                        entry.setSpeaker(speaker);
                         entries.add(entry);
                     }
                 }
@@ -151,13 +156,15 @@ public final class TtmlUtils {
         final long begin;
         final long end;
         final long duration;
+        final boolean background;
         boolean hasTimedChild;
 
-        SpanFrame(int startIndex, long begin, long end, long duration) {
+        SpanFrame(int startIndex, long begin, long end, long duration, boolean background) {
             this.startIndex = startIndex;
             this.begin = begin;
             this.end = end;
             this.duration = duration;
+            this.background = background;
         }
     }
 
