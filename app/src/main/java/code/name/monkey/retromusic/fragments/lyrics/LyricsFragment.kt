@@ -149,7 +149,6 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
     private fun setupLyricsView() {
         binding.lyricsView.apply {
             setCurrentColor(Color.WHITE)
-            setNormalColor(Color.LTGRAY)
             setTimeTextColor(Color.WHITE)
             setTimelineColor(Color.WHITE)
             setTimelineTextColor(Color.WHITE)

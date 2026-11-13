@@ -45,6 +45,7 @@ import code.name.monkey.retromusic.helper.MusicPlayerRemote
 import code.name.monkey.retromusic.helper.MusicProgressViewUpdateHelper
 import code.name.monkey.retromusic.lyrics.CoverLrcView
 import code.name.monkey.retromusic.lyrics.LyricsTranslation
+import code.name.monkey.retromusic.lyrics.TtmlUtils
 import code.name.monkey.retromusic.model.lyrics.Lyrics
 import code.name.monkey.retromusic.transform.CarousalPagerTransformer
 import code.name.monkey.retromusic.transform.ParallaxPagerTransformer
@@ -134,8 +135,9 @@ class PlayerAlbumCoverFragment : AbsMusicServiceFragment(R.layout.fragment_playe
             binding.playerLyricsTranslate.isVisible = PreferenceUtil.showLyrics && replaceCover && result.third.isNotBlank()
             binding.playerLyricsFormat.isVisible = PreferenceUtil.showLyrics && replaceCover && result.third.isNotBlank()
             binding.playerLyricsFormat.isClickable = hasLrcFormat && hasTtmlFormat
-            if (result.first != null) {
-                lrcView.loadLrc(result.first)
+            val selectedFile = result.first
+            if (selectedFile != null) {
+                lrcView.loadLrc(selectedFile)
             } else if (result.second.isNotBlank()) {
                 lrcView.loadLrc(result.second)
             } else {
@@ -146,7 +148,7 @@ class PlayerAlbumCoverFragment : AbsMusicServiceFragment(R.layout.fragment_playe
     }
 
     private fun prepareTranslations() {
-        val rows = lrcView.allLineTexts
+        val rows = lrcView.getAllLineTexts()
         translationJob?.cancel()
         translatedLines = emptyList()
         if (!translationEnabled || rows.isEmpty()) {
