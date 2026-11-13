@@ -700,7 +700,7 @@ public class LrcView extends View {
             lrcEntry.init(mLrcPaint, (int) getLrcWidth(), mTextGravity, mNormalTextColor);
         }
 
-        mOffset = getHeight() / 2F;
+        mOffset = getHeight() / 3F;
     }
 
     private void reset() {
@@ -780,7 +780,7 @@ public class LrcView extends View {
 
     private float getOffset(int line) {
         if (mLrcEntryList.get(line).getOffset() == Float.MIN_VALUE) {
-            float offset = getHeight() / 2F;
+            float offset = getHeight() / 3F;
             for (int i = 1; i <= line; i++) {
                 offset -=
                         ((mLrcEntryList.get(i - 1).getHeight() + mLrcEntryList.get(i).getHeight()) >> 1)

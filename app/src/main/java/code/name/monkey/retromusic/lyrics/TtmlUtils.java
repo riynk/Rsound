@@ -183,6 +183,22 @@ public final class TtmlUtils {
                             }
                         }
                         Collections.sort(normalized, (a, b) -> Long.compare(a.start, b.start));
+                        // Apple TTML may encode backing vocals with parentheses instead of ttm:role="x-bg".
+                        boolean insideBackgroundParentheses = false;
+                        List<LrcEntry.WordTiming> parenthesisMarked = new ArrayList<>();
+                        for (LrcEntry.WordTiming word : normalized) {
+                            int from = Math.max(0, Math.min(word.startIndex, line.length()));
+                            int to = Math.max(from, Math.min(word.endIndex, line.length()));
+                            String token = line.substring(from, to);
+                            if (token.contains("(")) insideBackgroundParentheses = true;
+                            boolean background = word.background || insideBackgroundParentheses;
+                            parenthesisMarked.add(new LrcEntry.WordTiming(
+                                word.start, word.end, word.startIndex, word.endIndex,
+                                background, word.continuesWord, word.sustained
+                            ));
+                            if (token.contains(")")) insideBackgroundParentheses = false;
+                        }
+                        normalized = parenthesisMarked;
                         for (int i = 0; i < normalized.size(); i++) {
                             LrcEntry.WordTiming word = normalized.get(i);
                             if (word.end <= word.start) {

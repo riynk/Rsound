@@ -174,7 +174,7 @@ class LrcEntry implements Comparable<LrcEntry> {
       TextPaint measurePaint = new TextPaint(paint);
       if (background) {
         measurePaint.setTextSize(measurePaint.getTextSize() * 0.78f);
-        measurePaint.setTypeface(Typeface.create(measurePaint.getTypeface(), Typeface.ITALIC));
+        measurePaint.setTypeface(Typeface.create(measurePaint.getTypeface(), Typeface.BOLD_ITALIC));
       }
       return Math.round(measurePaint.measureText(value));
     }
@@ -186,7 +186,7 @@ class LrcEntry implements Comparable<LrcEntry> {
       TextPaint drawPaint = new TextPaint(paint);
       if (background) {
         drawPaint.setTextSize(drawPaint.getTextSize() * 0.78f);
-        drawPaint.setTypeface(Typeface.create(drawPaint.getTypeface(), Typeface.ITALIC));
+        drawPaint.setTypeface(Typeface.create(drawPaint.getTypeface(), Typeface.BOLD_ITALIC));
       }
       float width = drawPaint.measureText(value);
       int save = canvas.save();

@@ -539,7 +539,7 @@ class CoverLrcView @JvmOverloads constructor(
         for (lrcEntry in mLrcEntryList) {
             lrcEntry.init(mLrcPaint, lrcWidth.toInt(), mTextGravity, mNormalTextColor)
         }
-        mOffset = (height / 2).toFloat()
+        mOffset = (height / 3).toFloat()
     }
 
     fun reset() {
@@ -615,7 +615,7 @@ class CoverLrcView @JvmOverloads constructor(
     private fun getOffset(line: Int): Float {
         if (mLrcEntryList.isEmpty()) return 0F
         if (mLrcEntryList[line].offset == Float.MIN_VALUE) {
-            var offset = (height / 2).toFloat()
+            var offset = (height / 3).toFloat()
             for (i in 1..line) {
                 offset -= ((mLrcEntryList[i - 1].height + mLrcEntryList[i].height shr 1)
                         + mDividerHeight)

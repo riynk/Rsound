@@ -68,6 +68,7 @@
                 android:padding="@dimen/normal_lyrics_padding"
                 android:textIsSelectable="true"
                 android:textSize="@dimen/lyrics_text_size"
+                android:textStyle="bold"
                 tools:text="@tools:sample/lorem[100]" />
         </ScrollView>
 
