@@ -15,6 +15,20 @@
     tools:visibility="visible">
 
     <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/player_lyrics_format"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="4dp"
+        android:text="LRC"
+        android:textAllCaps="true"
+        android:textSize="10sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        tools:visibility="visible" />
+
+    <com.google.android.material.textview.MaterialTextView
         android:id="@+id/player_lyrics_line1"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
