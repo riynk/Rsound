@@ -81,7 +81,7 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
     private var translationEnabled = false
     private var translationSource = "en"
     private var translationTarget = "id"
-    private var translationLine = ""
+    private var translatedLines: List<String> = emptyList()
     private var translationJob: Job? = null
 
     private val googleSearchLrcUrl: String
@@ -146,7 +146,10 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
 
     override fun onUpdateProgressViews(progress: Int, total: Int) {
         binding.lyricsView.updateTime(progress.toLong())
-        updateTranslatedLine(binding.lyricsView.currentLineText)
+        if (translationEnabled && translatedLines.isEmpty() && translationJob == null && binding.lyricsView.hasLrc()) {
+            prepareTranslations()
+        }
+        updateTranslatedLine(binding.lyricsView.currentLineGroupIndex)
     }
 
     private fun openTranslationSettings() {
@@ -154,15 +157,20 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
             translationSource = source
             translationTarget = target
             translationEnabled = true
-            translationLine = ""
-            updateTranslatedLine(binding.lyricsView.currentLineText)
+            prepareTranslations()
         }
     }
 
-    private fun updateTranslatedLine(line: String) {
-        if (!translationEnabled || line.isBlank() || line == translationLine) return
-        translationLine = line
+    /** Translate all rows before playback selects them by timestamp index. */
+    private fun prepareTranslations() {
+        val rows = binding.lyricsView.allLineTexts
         translationJob?.cancel()
+        translatedLines = emptyList()
+        if (!translationEnabled || rows.isEmpty()) {
+            binding.translatedLyrics.text = null
+            binding.translatedLyrics.isVisible = false
+            return
+        }
         binding.translatedLyrics.text = getString(R.string.translation_loading)
         binding.translatedLyrics.isVisible = true
         val requestedSong = song
@@ -170,19 +178,29 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
         val target = translationTarget
         translationJob = viewLifecycleOwner.lifecycleScope.launch {
             val result = runCatching {
-                withContext(Dispatchers.IO) { LyricsTranslation.translate(line, source, target) }
+                withContext(Dispatchers.IO) { LyricsTranslation.translateLines(rows, source, target) }
             }
             if (!isAdded || requestedSong.data != MusicPlayerRemote.currentSong.data ||
-                !translationEnabled || translationLine != line) return@launch
-            binding.translatedLyrics.text = result.getOrElse {
-                getString(R.string.translation_failed)
+                !translationEnabled || source != translationSource || target != translationTarget) return@launch
+            translationJob = null
+            translatedLines = result.getOrElse {
+                binding.translatedLyrics.text = getString(R.string.translation_failed)
+                return@launch
             }
+            updateTranslatedLine(binding.lyricsView.currentLineGroupIndex)
         }
+    }
+
+    private fun updateTranslatedLine(index: Int) {
+        if (!translationEnabled || index < 0 || index >= translatedLines.size) return
+        binding.translatedLyrics.text = translatedLines[index]
+        binding.translatedLyrics.isVisible = translatedLines[index].isNotBlank()
     }
 
     private fun clearTranslation() {
         translationJob?.cancel()
-        translationLine = ""
+        translationJob = null
+        translatedLines = emptyList()
         binding.translatedLyrics.text = null
         binding.translatedLyrics.isVisible = false
     }
@@ -212,6 +230,7 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
     override fun onServiceConnected() {
         super.onServiceConnected()
         useTtmlLyrics = false
+        clearTranslation()
         updateTitleSong()
         loadLyrics()
     }
@@ -464,6 +483,7 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
     }
 
     private fun loadLRCLyrics(): Boolean {
+        clearTranslation()
         val lrcFile = LyricUtil.getLrcLyricsFile(song)
         val ttmlFile = LyricUtil.getTtmlLyricsFile(song)
         var selectedFile = when {

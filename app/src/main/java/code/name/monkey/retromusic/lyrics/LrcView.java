@@ -383,10 +383,40 @@ public class LrcView extends View {
                 });
     }
 
+    /** Returns all synchronized rows, grouping TTML voices sharing a timestamp. */
+    public List<String> getAllLineTexts() {
+        List<String> result = new ArrayList<>();
+        long previousTime = Long.MIN_VALUE;
+        StringBuilder row = new StringBuilder();
+        for (LrcEntry entry : mLrcEntryList) {
+            if (entry.getTime() != previousTime) {
+                if (row.length() > 0) result.add(row.toString());
+                row.setLength(0);
+                previousTime = entry.getTime();
+            } else if (row.length() > 0) row.append('\n');
+            row.append(entry.getShowText());
+        }
+        if (row.length() > 0) result.add(row.toString());
+        return result;
+    }
+
+    /** Index of the active timestamp group in getAllLineTexts(). */
+    public int getCurrentLineGroupIndex() {
+        if (!hasLrc() || mCurrentLine < 0 || mCurrentLine >= mLrcEntryList.size()) return -1;
+        int index = -1;
+        long previousTime = Long.MIN_VALUE;
+        for (int i = 0; i <= mCurrentLine; i++) {
+            long time = mLrcEntryList.get(i).getTime();
+            if (time != previousTime) { index++; previousTime = time; }
+        }
+        return index;
+    }
+
     /** Returns the plain text of the currently synchronized lyric line. */
     public String getCurrentLineText() {
-        if (!hasLrc() || mCurrentLine < 0 || mCurrentLine >= mLrcEntryList.size()) return "";
-        return mLrcEntryList.get(mCurrentLine).getText();
+        int index = getCurrentLineGroupIndex();
+        List<String> rows = getAllLineTexts();
+        return index >= 0 && index < rows.size() ? rows.get(index) : "";
     }
 
     public boolean hasLrc() {

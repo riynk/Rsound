@@ -309,6 +309,36 @@ public final class TtmlUtils {
             return false;
         }
 
+        /** All TTML timestamp groups in playback order. */
+        public List<String> getAllPlainLines() {
+            List<String> result = new ArrayList<>();
+            long previousTime = Long.MIN_VALUE;
+            StringBuilder row = new StringBuilder();
+            for (LrcEntry entry : entries) {
+                if (entry.getTime() != previousTime) {
+                    if (row.length() > 0) result.add(row.toString());
+                    row.setLength(0);
+                    previousTime = entry.getTime();
+                } else if (row.length() > 0) row.append('\n');
+                row.append(entry.getShowText());
+            }
+            if (row.length() > 0) result.add(row.toString());
+            return result;
+        }
+
+        /** Index of the active timestamp group in getAllPlainLines(). */
+        public int getLineIndex(long timeMs) {
+            long activeTime = findLineTime(timeMs);
+            if (activeTime < 0) return -1;
+            int index = -1;
+            long previousTime = Long.MIN_VALUE;
+            for (LrcEntry entry : entries) {
+                if (entry.getTime() != previousTime) { index++; previousTime = entry.getTime(); }
+                if (entry.getTime() == activeTime) return index;
+            }
+            return -1;
+        }
+
         public String getPlainLine(long timeMs) {
             long lineTime = findLineTime(timeMs);
             StringBuilder result = new StringBuilder();

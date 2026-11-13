@@ -26,21 +26,29 @@ public abstract class AbsSynchronizedLyrics extends Lyrics {
   protected int offset = 0;
 
   public String getLine(int time) {
+    int index = getLineIndex(time);
+    return index >= 0 && index < lines.size() ? lines.valueAt(index) : "";
+  }
+
+  /** Returns every synchronized lyric row in timestamp order. */
+  public java.util.List<String> getAllLines() {
+    parse(true);
+    java.util.List<String> result = new java.util.ArrayList<>();
+    for (int i = 0; i < lines.size(); i++) result.add(lines.valueAt(i));
+    return result;
+  }
+
+  /** Index of the active row in getAllLines(). */
+  public int getLineIndex(int time) {
+    parse(true);
+    if (lines.size() == 0) return -1;
     time += offset + AbsSynchronizedLyrics.TIME_OFFSET_MS;
-
-    int lastLineTime = lines.keyAt(0);
-
+    int activeIndex = 0;
     for (int i = 0; i < lines.size(); i++) {
-      int lineTime = lines.keyAt(i);
-
-      if (time >= lineTime) {
-        lastLineTime = lineTime;
-      } else {
-        break;
-      }
+      if (time >= lines.keyAt(i)) activeIndex = i;
+      else break;
     }
-
-    return lines.get(lastLineTime);
+    return activeIndex;
   }
 
   @Override

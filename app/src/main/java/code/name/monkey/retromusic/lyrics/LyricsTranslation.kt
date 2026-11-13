@@ -53,6 +53,60 @@ object LyricsTranslation {
             }.setNegativeButton(android.R.string.cancel, null).show()
     }
 
+    /** Prefetches a complete set of rows in batches within the service byte limit. */
+    @Throws(Exception::class)
+    fun translateLines(lines: List<String>, source: String, target: String): List<String> {
+        val result = MutableList(lines.size) { "" }
+        var start = 0
+        while (start < lines.size) {
+            while (start < lines.size && lines[start].isBlank()) start++
+            if (start >= lines.size) break
+            var end = start
+            var bytes = 0
+            while (end < lines.size && lines[end].isNotBlank()) {
+                val size = lines[end].toByteArray(Charsets.UTF_8).size
+                if (size > 500) break
+                val combined = bytes + size + if (end > start) 1 else 0
+                if (combined > 500) break
+                bytes = combined
+                end++
+            }
+            if (end == start) end++
+            val batch = lines.subList(start, end)
+            val translated = if (batch.size == 1) {
+                listOf(translateLongLine(batch[0], source, target))
+            } else {
+                runCatching {
+                    val response = translate(batch.joinToString("\n"), source, target)
+                    response.split("\n").map { it.trim() }.takeIf { it.size == batch.size }
+                        ?: throw IllegalStateException("Translation service changed row boundaries")
+                }.getOrElse {
+                    batch.map { if (it.isBlank()) "" else translateLongLine(it, source, target) }
+                }
+            }
+            translated.forEachIndexed { offset, value -> result[start + offset] = value }
+            start = end
+        }
+        return result
+    }
+
+    private fun translateLongLine(line: String, source: String, target: String): String {
+        if (line.toByteArray(Charsets.UTF_8).size <= 500) return translate(line, source, target)
+        val chunks = mutableListOf<String>()
+        var remaining = line.trim()
+        while (remaining.isNotEmpty()) {
+            var end = remaining.length
+            while (end > 0 && remaining.substring(0, end).toByteArray(Charsets.UTF_8).size > 500) end--
+            if (end < remaining.length) {
+                val boundary = remaining.lastIndexOf(' ', end)
+                if (boundary > 0) end = boundary
+            }
+            chunks += remaining.substring(0, end)
+            remaining = remaining.substring(end).trimStart()
+        }
+        return chunks.joinToString(" ") { translate(it, source, target) }
+    }
+
     @Throws(Exception::class)
     fun translate(text: String, source: String, target: String): String {
         val cleanText = text.trim()

@@ -51,7 +51,7 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
     private var translationEnabled = false
     private var translationSource = "en"
     private var translationTarget = "id"
-    private var translationLine = ""
+    private var translatedLines: List<String> = emptyList()
     private var translationJob: Job? = null
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -71,8 +71,7 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
                 translationSource = source
                 translationTarget = target
                 translationEnabled = true
-                translationLine = ""
-                updateTranslatedLine(lyricsLine2.text.toString())
+                prepareTranslations()
             }
         }
         binding.playerLyricsLine2.setOnClickListener {
@@ -84,6 +83,7 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
                 LyricUtil.getTtmlLyricsFile(song) != null
             ) {
                 useTtmlLyrics = !useTtmlLyrics
+                clearTranslation()
                 updateLyrics()
             }
         }
@@ -187,6 +187,7 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
             if (_binding == null || requestToken != lyricsLoadToken) return@launch
             lyrics = result?.first?.first
             ttmlDocument = result?.second
+            if (translationEnabled) prepareTranslations()
             binding.playerLyricsFormat.text = result?.first?.second.orEmpty()
             binding.playerLyricsFormat.isVisible = !result?.first?.second.isNullOrBlank()
             binding.playerLyricsFormat.isClickable = result?.first?.third == true
@@ -210,7 +211,8 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
         val document = ttmlDocument
         val oldLine = lyricsLine2.text.toString()
         val line = document?.getPlainLine(progress.toLong()) ?: synchronizedLyrics.getLine(progress)
-        updateTranslatedLine(line)
+        val lineIndex = document?.getLineIndex(progress.toLong()) ?: synchronizedLyrics.getLineIndex(progress)
+        updateTranslatedLine(lineIndex)
         val karaokeText = document?.getKaraokeText(
             progress.toLong(),
             lyricsLine2.currentTextColor,
@@ -247,10 +249,19 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
         }
     }
 
-    private fun updateTranslatedLine(line: String) {
-        if (!translationEnabled || line.isBlank() || line == translationLine) return
-        translationLine = line
+    /** Prefetch all lyric rows and preserve their original LRC/TTML order. */
+    private fun prepareTranslations() {
+        val rows = ttmlDocument?.getAllPlainLines()
+            ?: (lyrics as? AbsSynchronizedLyrics)?.allLines.orEmpty()
         translationJob?.cancel()
+        translatedLines = emptyList()
+        if (!translationEnabled || rows.isEmpty() || _binding == null) {
+            if (_binding != null) {
+                binding.playerLyricsTranslated.text = null
+                binding.playerLyricsTranslated.isVisible = false
+            }
+            return
+        }
         binding.playerLyricsTranslated.text = getString(R.string.translation_loading)
         binding.playerLyricsTranslated.isVisible = true
         val requestedSong = MusicPlayerRemote.currentSong
@@ -258,19 +269,29 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
         val target = translationTarget
         translationJob = lifecycleScope.launch {
             val result = runCatching {
-                withContext(Dispatchers.IO) { LyricsTranslation.translate(line, source, target) }
+                withContext(Dispatchers.IO) { LyricsTranslation.translateLines(rows, source, target) }
             }
             if (_binding == null || requestedSong.data != MusicPlayerRemote.currentSong.data ||
-                !translationEnabled || translationLine != line) return@launch
-            binding.playerLyricsTranslated.text = result.getOrElse {
-                getString(R.string.translation_failed)
+                !translationEnabled || source != translationSource || target != translationTarget) return@launch
+            translationJob = null
+            translatedLines = result.getOrElse {
+                binding.playerLyricsTranslated.text = getString(R.string.translation_failed)
+                return@launch
             }
+            onUpdateProgressViews(MusicPlayerRemote.position, MusicPlayerRemote.duration)
         }
+    }
+
+    private fun updateTranslatedLine(index: Int) {
+        if (!translationEnabled || index < 0 || index >= translatedLines.size || _binding == null) return
+        binding.playerLyricsTranslated.text = translatedLines[index]
+        binding.playerLyricsTranslated.isVisible = translatedLines[index].isNotBlank()
     }
 
     private fun clearTranslation() {
         translationJob?.cancel()
-        translationLine = ""
+        translationJob = null
+        translatedLines = emptyList()
         if (_binding != null) {
             binding.playerLyricsTranslated.text = null
             binding.playerLyricsTranslated.isVisible = false
