@@ -7,6 +7,11 @@
         android:title="@string/action_search"
         app:showAsAction="always" />
     <item
+        android:id="@+id/action_download_lyrics"
+        android:icon="@drawable/ic_cloud_download"
+        android:title="@string/download_lyrics"
+        app:showAsAction="ifRoom" />
+    <item
         android:id="@+id/action_lyrics_format"
         android:icon="@drawable/ic_ttml"
         android:title="@string/switch_to_ttml"
