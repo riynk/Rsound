@@ -286,7 +286,7 @@ class GradientPlayerFragment : AbsPlayerFragment(R.layout.fragment_gradient_play
         updateRepeatState()
         updateShuffleState()
         updatePrevNextColor()
-        binding.coverLyrics.getFragment<CoverLyricsFragment>().setColors(color)
+        binding.gradientLyricsOverlay.getFragment<CoverLyricsFragment>().setColors(color)
     }
 
     override fun onFavoriteToggled() {
