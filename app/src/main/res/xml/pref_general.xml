@@ -19,7 +19,7 @@
         <code.name.monkey.appthemehelper.common.prefs.supportv7.ATESwitchPreference
             android:key="black_theme"
             android:layout="@layout/list_item_view_switch_no_title"
-            android:title="@string/black_theme_name" />
+            android:title="@string/black_theme_name"  app:icon="@drawable/ic_palette_outline" />
 
         <code.name.monkey.appthemehelper.common.prefs.supportv7.ATESwitchPreference
             android:defaultValue="@bool/md3_enabled"
@@ -27,13 +27,13 @@
             android:key="material_you"
             android:layout="@layout/list_item_view_switch_no_title"
             android:title="@string/pref_title_md3"
-            app:isPreferenceVisible="@bool/md3_available" />
+            app:isPreferenceVisible="@bool/md3_available"  app:icon="@drawable/ic_palette" />
 
         <code.name.monkey.appthemehelper.common.prefs.supportv7.ATESwitchPreference
             android:defaultValue="false"
             android:key="custom_font"
             android:layout="@layout/list_item_view_switch_no_title"
-            android:title="@string/pref_title_custom_font" />
+            android:title="@string/pref_title_custom_font"  app:icon="@drawable/ic_keyboard" />
 
     </code.name.monkey.appthemehelper.common.prefs.supportv7.ATEPreferenceCategory>
 
@@ -64,14 +64,14 @@
             android:key="desaturated_color"
             android:layout="@layout/list_item_view_switch"
             android:summary="@string/pref_summary_desaturated_color"
-            android:title="@string/pref_title_desaturated_color" />
+            android:title="@string/pref_title_desaturated_color"  app:icon="@drawable/ic_colorize" />
 
         <code.name.monkey.appthemehelper.common.prefs.supportv7.ATESwitchPreference
             android:defaultValue="false"
             android:key="adaptive_color_app"
             android:layout="@layout/list_item_view_switch"
             android:summary="@string/pref_summary_colored_app"
-            android:title="@string/pref_title_colored_app" />
+            android:title="@string/pref_title_colored_app"  app:icon="@drawable/ic_palette" />
 
         <code.name.monkey.appthemehelper.common.prefs.supportv7.ATESwitchPreference
             android:defaultValue="false"
@@ -79,6 +79,6 @@
             android:key="should_color_app_shortcuts"
             android:layout="@layout/list_item_view_switch"
             android:summary="@string/pref_summary_colored_app_shortcuts"
-            android:title="@string/pref_title_app_shortcuts" />
+            android:title="@string/pref_title_app_shortcuts"  app:icon="@drawable/ic_app_shortcut_background" />
     </code.name.monkey.appthemehelper.common.prefs.supportv7.ATEPreferenceCategory>
 </androidx.preference.PreferenceScreen>
