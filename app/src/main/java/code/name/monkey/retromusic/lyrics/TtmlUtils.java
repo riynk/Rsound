@@ -351,6 +351,7 @@ public final class TtmlUtils {
         List<LrcEntry.WordTiming> sourceWords, boolean background) {
         StringBuilder text = new StringBuilder();
         List<LrcEntry.WordTiming> timings = new ArrayList<>();
+        boolean previousContinuesWord = false;
         for (LrcEntry.WordTiming word : sourceWords) {
             if (word.background != background) continue;
             int start = Math.max(0, Math.min(word.startIndex, source.length()));
@@ -358,13 +359,14 @@ public final class TtmlUtils {
             if (end <= start) continue;
             String syllable = source.substring(start, end).replace("(", "").replace(")", "");
             if (syllable.isEmpty()) continue;
-            if (text.length() > 0 && !word.continuesWord) text.append(' ');
+            if (text.length() > 0 && !previousContinuesWord) text.append(' ');
             int textStart = text.length();
             text.append(syllable);
             timings.add(new LrcEntry.WordTiming(
                 word.start, word.end, textStart, text.length(),
                 background, word.continuesWord, word.sustained
             ));
+            previousContinuesWord = word.continuesWord;
         }
         return new LinePart(text.toString(), timings);
     }
