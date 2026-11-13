@@ -14,7 +14,7 @@
         android:key="whitelist_music"
         android:layout="@layout/list_item_view_switch"
         android:summary="@string/pref_summary_whitelist"
-        android:title="@string/pref_title_whitelist" />
+        android:title="@string/pref_title_whitelist"  app:icon="@drawable/ic_check_circle" />
 
     <code.name.monkey.appthemehelper.common.prefs.supportv7.ATEPreferenceCategory
         android:layout="@layout/preference_category_title"
