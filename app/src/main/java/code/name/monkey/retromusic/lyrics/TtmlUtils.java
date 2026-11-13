@@ -95,7 +95,11 @@ public final class TtmlUtils {
                         } else if (event == XmlPullParser.TEXT ||
                                 event == XmlPullParser.CDSECT ||
                                 event == XmlPullParser.ENTITY_REF) {
-                            if (parser.getText() != null) text.append(parser.getText());
+                            String rawText = parser.getText();
+                            if (rawText != null &&
+                                (!rawText.trim().isEmpty() || " ".equals(rawText) || "\u00A0".equals(rawText))) {
+                                text.append(rawText.replace('\u00A0', ' '));
+                            }
                         } else if (event == XmlPullParser.END_TAG) {
                             if ("span".equals(parser.getName()) && !spans.isEmpty()) {
                                 SpanFrame span = spans.pop();
