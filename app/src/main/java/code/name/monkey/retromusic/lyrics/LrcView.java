@@ -19,6 +19,7 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
@@ -56,6 +57,7 @@ public class LrcView extends View {
     private final List<LrcEntry> mLrcEntryList = new ArrayList<>();
     private final TextPaint mLrcPaint = new TextPaint();
     private final TextPaint mTimePaint = new TextPaint();
+    private final Paint mTtmlDotPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private Paint.FontMetrics mTimeFontMetrics;
     private Drawable mPlayDrawable;
     private float mDividerHeight;
@@ -78,6 +80,7 @@ public class LrcView extends View {
     private float mOffset;
     private int mCurrentLine;
     private long mWordHighlightTime = -1L;
+    private long mCurrentPlaybackTime;
     private Object mFlag;
     private boolean isShowTimeline;
     private boolean isTouching;
@@ -384,6 +387,7 @@ public class LrcView extends View {
     public void updateTime(long time) {
         runOnUi(
                 () -> {
+                    mCurrentPlaybackTime = time;
                     if (!hasLrc()) {
                         return;
                     }
@@ -501,7 +505,65 @@ public class LrcView extends View {
             } else {
                 drawText(canvas, layout, y);
             }
+
+            if (ttmlMode) {
+                int nextIndex = i + 1;
+                if (nextIndex < mLrcEntryList.size()
+                        && mLrcEntryList.get(nextIndex).getTime() != mLrcEntryList.get(i).getTime()) {
+                    long lineEnd = mLrcEntryList.get(i).getWordEndTime();
+                    for (int previous = i - 1; previous >= 0
+                            && mLrcEntryList.get(previous).getTime() == mLrcEntryList.get(i).getTime();
+                            previous--) {
+                        lineEnd = Math.max(lineEnd, mLrcEntryList.get(previous).getWordEndTime());
+                    }
+                    long nextStart = mLrcEntryList.get(nextIndex).getTime();
+                    long gapDuration = nextStart - lineEnd;
+                    if (gapDuration > 7000L && mCurrentPlaybackTime >= lineEnd
+                            && mCurrentPlaybackTime < nextStart) {
+                        drawTtmlGapDots(canvas,
+                                y + (layout.getHeight() / 2f) + (mDividerHeight / 2f),
+                                mCurrentPlaybackTime - lineEnd, gapDuration);
+                    }
+                }
+            }
         }
+
+        if (ttmlMode && !mLrcEntryList.isEmpty()) {
+            long firstLineStart = mLrcEntryList.get(0).getTime();
+            if (firstLineStart > 7000L && mCurrentPlaybackTime >= 0L
+                    && mCurrentPlaybackTime < firstLineStart) {
+                drawTtmlGapDots(canvas, getHeight() / 2f - mOffset,
+                        mCurrentPlaybackTime, firstLineStart);
+            }
+        }
+    }
+
+    private void drawTtmlGapDots(Canvas canvas, float baseline, long elapsed, long duration) {
+        float density = getResources().getDisplayMetrics().density;
+        long appearDuration = Math.max(1L, duration / 4L);
+        float centerX = getWidth() / 2f;
+        float spacing = 13f * density;
+        long remaining = Math.max(0L, duration - elapsed);
+        for (int i = 0; i < 3; i++) {
+            long appearAt = appearDuration * (i + 1);
+            float progress = Math.max(0f, Math.min(1f,
+                    (elapsed - appearAt) / (float) appearDuration));
+            int color = blendColor(mNormalTextColor, mCurrentTextColor, progress);
+            if (i == 2 && remaining <= 500L) color = mCurrentTextColor;
+            float radius = (2.5f + 1.5f * progress) * density;
+            mTtmlDotPaint.setColor(color);
+            mTtmlDotPaint.setAlpha(progress <= 0f ? 90 : 255);
+            canvas.drawCircle(centerX + (i - 1) * spacing, baseline, radius, mTtmlDotPaint);
+        }
+    }
+
+    private int blendColor(int from, int to, float fraction) {
+        float amount = Math.max(0f, Math.min(1f, fraction));
+        return Color.argb(
+                Math.round(Color.alpha(from) + (Color.alpha(to) - Color.alpha(from)) * amount),
+                Math.round(Color.red(from) + (Color.red(to) - Color.red(from)) * amount),
+                Math.round(Color.green(from) + (Color.green(to) - Color.green(from)) * amount),
+                Math.round(Color.blue(from) + (Color.blue(to) - Color.blue(from)) * amount));
     }
 
     private void drawText(Canvas canvas, StaticLayout staticLayout, float y) {
@@ -585,6 +647,7 @@ public class LrcView extends View {
         mLrcEntryList.clear();
         mOffset = 0;
         mCurrentLine = 0;
+        mCurrentPlaybackTime = 0L;
         mCurrentLineScale = 1f;
         if (mLineScaleAnimator != null) mLineScaleAnimator.cancel();
         mWordHighlightTime = -1L;
