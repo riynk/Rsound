@@ -20,6 +20,8 @@ import android.text.TextPaint;
 import android.text.TextUtils;
 import android.text.SpannableString;
 import android.text.style.ForegroundColorSpan;
+import android.text.style.StyleSpan;
+import android.graphics.Typeface;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,6 +39,8 @@ class LrcEntry implements Comparable<LrcEntry> {
   private StaticLayout staticLayout;
   private final List<WordTiming> wordTimings = new ArrayList<>();
   private long currentTime;
+  private int textGravity = -1;
+  private String speaker;
   /** 歌词距离视图顶部的距离 */
   private float offset = Float.MIN_VALUE;
 
@@ -78,6 +82,23 @@ class LrcEntry implements Comparable<LrcEntry> {
     if (timings != null) wordTimings.addAll(timings);
   }
 
+  void setTextGravity(int gravity) {
+    textGravity = gravity;
+  }
+
+  int getTextGravity(int fallback) {
+    return textGravity >= 0 ? textGravity : fallback;
+  }
+
+  void setSpeaker(String speaker) {
+    this.speaker = speaker;
+    if ("v2".equalsIgnoreCase(speaker)) textGravity = GRAVITY_RIGHT;
+  }
+
+  String getSpeaker() {
+    return speaker;
+  }
+
   boolean hasWordTimings() {
     return !wordTimings.isEmpty();
   }
@@ -106,6 +127,10 @@ class LrcEntry implements Comparable<LrcEntry> {
       if (end > start) {
         styled.setSpan(new ForegroundColorSpan(color), start, end,
             SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE);
+        if (word.background) {
+          styled.setSpan(new StyleSpan(Typeface.ITALIC), start, end,
+              SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
       }
     }
     staticLayout = new StaticLayout(styled, paint, width, align, 1f, 0f, false);
@@ -116,12 +141,18 @@ class LrcEntry implements Comparable<LrcEntry> {
     long end;
     final int startIndex;
     final int endIndex;
+    final boolean background;
 
     WordTiming(long start, long end, int startIndex, int endIndex) {
+      this(start, end, startIndex, endIndex, false);
+    }
+
+    WordTiming(long start, long end, int startIndex, int endIndex, boolean background) {
       this.start = start;
       this.end = end;
       this.startIndex = startIndex;
       this.endIndex = endIndex;
+      this.background = background;
     }
   }
 
