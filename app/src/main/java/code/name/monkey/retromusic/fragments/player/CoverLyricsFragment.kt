@@ -63,18 +63,33 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
     private var translationJob: Job? = null
     private var displayedLine: String? = null
     private var displayedLineIndex: Int = -1
+    private var canSwitchLyricsFormat = false
+
+    private fun standaloneOverlayId(): Int {
+        return when (PreferenceUtil.nowPlayingScreen) {
+            NowPlayingScreen.Adaptive -> R.id.adaptiveLyricsOverlay
+            NowPlayingScreen.Card -> R.id.cardLyricsOverlay
+            NowPlayingScreen.BlurCard -> R.id.cardBlurLyricsOverlay
+            NowPlayingScreen.Gradient -> R.id.gradientLyricsOverlay
+            else -> View.NO_ID
+        }
+    }
 
     private fun isStandaloneOverlayHost(): Boolean {
         val hostId = (view?.parent as? View)?.id
-        return hostId == R.id.adaptiveLyricsOverlay ||
-            hostId == R.id.cardLyricsOverlay ||
-            hostId == R.id.cardBlurLyricsOverlay ||
-            hostId == R.id.gradientLyricsOverlay
+        return hostId != null && hostId == standaloneOverlayId() && hostId != View.NO_ID
+    }
+
+    private fun hasStandaloneOverlayInCurrentLayout(): Boolean {
+        val overlayId = standaloneOverlayId()
+        return overlayId != View.NO_ID && activity?.findViewById<View>(overlayId) != null
     }
 
     private fun shouldShowLyrics(): Boolean {
-        return PreferenceUtil.showLyrics &&
-            (!isStandaloneOverlayHost() || PreferenceUtil.lyricsType == CoverLyricsType.OVER_COVER)
+        val standaloneHost = isStandaloneOverlayHost()
+        val duplicateNestedHost = hasStandaloneOverlayInCurrentLayout() && !standaloneHost
+        return PreferenceUtil.showLyrics && !duplicateNestedHost &&
+            (!standaloneHost || PreferenceUtil.lyricsType == CoverLyricsType.OVER_COVER)
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -105,17 +120,7 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
             goToLyrics(requireActivity())
         }
         binding.playerLyricsFormat.setOnClickListener {
-            val song = MusicPlayerRemote.currentSong
-            val lrcFile = LyricUtil.getLrcLyricsFile(song)
-            val ttmlFile = LyricUtil.getTtmlLyricsFile(song)
-            val hasLrc = lrcFile?.let {
-                Regex("(?m)^\\s*\\[\\d{1,3}:\\d{2}(?:[.:]\\d{1,3})?\\]")
-                    .containsMatchIn(LyricUtil.getStringFromLrc(it))
-            } == true
-            val hasTtml = ttmlFile?.let {
-                TtmlUtils.hasValidTtml(LyricUtil.getStringFromLrc(it))
-            } == true
-            if (hasLrc && hasTtml) {
+            if (canSwitchLyricsFormat) {
                 useTtmlLyrics = !useTtmlLyrics
                 clearTranslation()
                 updateLyrics()
@@ -150,6 +155,9 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
                 ttmlDocument = null
                 displayedLine = null
                 displayedLineIndex = -1
+                lyricsLayout.animate().cancel()
+                lyricsLine1.animate().cancel()
+                lyricsLine2.animate().cancel()
                 binding.playerLyricsLine1.text = null
                 binding.playerLyricsLine2.text = null
                 binding.root.isVisible = false
@@ -260,7 +268,8 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
             binding.playerLyricsFormat.text = result?.first?.second.orEmpty()
             binding.playerLyricsFormat.isVisible = !result?.first?.second.isNullOrBlank()
             binding.playerLyricsTranslate.isVisible = !result?.first?.second.isNullOrBlank()
-            binding.playerLyricsFormat.isClickable = result?.first?.third == true
+            canSwitchLyricsFormat = result?.first?.third == true
+            binding.playerLyricsFormat.isClickable = canSwitchLyricsFormat
             onUpdateProgressViews(MusicPlayerRemote.position, MusicPlayerRemote.songDurationMillis)
         }
     }
