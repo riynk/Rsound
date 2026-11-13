@@ -144,7 +144,7 @@ class LrcEntry implements Comparable<LrcEntry> {
    * Draws each timed TTML syllable with a left-to-right karaoke fill, rather than
    * switching the whole word on at its start timestamp.
    */
-  private static final class ProgressiveFillSpan extends ReplacementSpan {
+  static final class ProgressiveFillSpan extends ReplacementSpan {
     private final int activeColor;
     private final int inactiveColor;
     private final float progress;
@@ -161,7 +161,12 @@ class LrcEntry implements Comparable<LrcEntry> {
     public int getSize(Paint paint, CharSequence text, int start, int end,
         Paint.FontMetricsInt fm) {
       String value = text.subSequence(start, end).toString();
-      return Math.round(paint.measureText(value));
+      TextPaint measurePaint = new TextPaint(paint);
+      if (background) {
+        measurePaint.setTextSize(measurePaint.getTextSize() * 0.78f);
+        measurePaint.setTypeface(Typeface.create(measurePaint.getTypeface(), Typeface.ITALIC));
+      }
+      return Math.round(measurePaint.measureText(value));
     }
 
     @Override
@@ -170,6 +175,7 @@ class LrcEntry implements Comparable<LrcEntry> {
       String value = text.subSequence(start, end).toString();
       TextPaint drawPaint = new TextPaint(paint);
       if (background) {
+        drawPaint.setTextSize(drawPaint.getTextSize() * 0.78f);
         drawPaint.setTypeface(Typeface.create(drawPaint.getTypeface(), Typeface.ITALIC));
       }
       float width = drawPaint.measureText(value);
@@ -255,7 +261,11 @@ class LrcEntry implements Comparable<LrcEntry> {
     this.secondText = secondText;
   }
 
-  private String getShowText() {
+  String getSecondText() {
+    return secondText;
+  }
+
+  String getShowText() {
     if (!TextUtils.isEmpty(secondText)) {
       return text + "\n" + secondText;
     } else {
