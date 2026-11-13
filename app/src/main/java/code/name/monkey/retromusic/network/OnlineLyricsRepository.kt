@@ -40,6 +40,16 @@ object OnlineLyricsRepository {
 
     /** Blocking call; invoke only from Dispatchers.IO. */
     fun download(song: Song): DownloadResult {
+        return try {
+            downloadInternal(song)
+        } catch (error: Exception) {
+            DownloadResult.Failed(
+                error.message ?: "Gagal menyimpan atau mengambil lirik."
+            )
+        }
+    }
+
+    private fun downloadInternal(song: Song): DownloadResult {
         if (song.title.isBlank() || song.artistName.isBlank()) return DownloadResult.NotFound
 
         var lrcContent: String? = null
