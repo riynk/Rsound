@@ -56,6 +56,8 @@ class LrcEntry implements Comparable<LrcEntry> {
   }
 
   void init(TextPaint paint, int width, int gravity) {
+    gravity = getTextGravity(gravity);
+    gravity = getTextGravity(gravity);
     Layout.Alignment align;
     switch (gravity) {
       case GRAVITY_LEFT:
