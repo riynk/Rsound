@@ -40,6 +40,11 @@ public final class TtmlUtils {
             XmlPullParserFactory factory = XmlPullParserFactory.newInstance();
             factory.setNamespaceAware(true);
             XmlPullParser parser = factory.newPullParser();
+            try {
+                parser.setFeature(XmlPullParser.FEATURE_PROCESS_DOCDECL, false);
+            } catch (Exception ignored) {
+                // The Android parser may not expose this optional feature.
+            }
             parser.setInput(new StringReader(content));
 
             int event = parser.getEventType();
@@ -51,6 +56,7 @@ public final class TtmlUtils {
                     int depth = 1;
                     while (depth > 0) {
                         event = parser.next();
+                        if (event == XmlPullParser.END_DOCUMENT) break;
                         if (event == XmlPullParser.START_TAG) {
                             depth++;
                             if (start < 0) {
