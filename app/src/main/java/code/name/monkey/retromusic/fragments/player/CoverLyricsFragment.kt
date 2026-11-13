@@ -17,6 +17,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
 import code.name.monkey.retromusic.R
 import code.name.monkey.retromusic.SHOW_LYRICS
+import code.name.monkey.retromusic.LYRICS_TYPE
 import code.name.monkey.retromusic.databinding.FragmentCoverLyricsBinding
 import code.name.monkey.retromusic.extensions.dipToPix
 import code.name.monkey.retromusic.fragments.NowPlayingScreen
@@ -27,6 +28,7 @@ import code.name.monkey.retromusic.helper.MusicPlayerRemote
 import code.name.monkey.retromusic.helper.MusicProgressViewUpdateHelper
 import code.name.monkey.retromusic.model.lyrics.AbsSynchronizedLyrics
 import code.name.monkey.retromusic.model.lyrics.Lyrics
+import code.name.monkey.retromusic.util.CoverLyricsType
 import code.name.monkey.retromusic.util.LyricUtil
 import code.name.monkey.retromusic.util.PreferenceUtil
 import code.name.monkey.retromusic.util.color.MediaNotificationProcessor
@@ -62,12 +64,27 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
     private var displayedLine: String? = null
     private var displayedLineIndex: Int = -1
 
+    private fun isStandaloneOverlayHost(): Boolean {
+        val hostId = (view?.parent as? View)?.id
+        return hostId == R.id.adaptiveLyricsOverlay ||
+            hostId == R.id.cardLyricsOverlay ||
+            hostId == R.id.cardBlurLyricsOverlay ||
+            hostId == R.id.gradientLyricsOverlay
+    }
+
+    private fun shouldShowLyrics(): Boolean {
+        return PreferenceUtil.showLyrics &&
+            (!isStandaloneOverlayHost() || PreferenceUtil.lyricsType == CoverLyricsType.OVER_COVER)
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         _binding = FragmentCoverLyricsBinding.bind(view)
         progressViewUpdateHelper = MusicProgressViewUpdateHelper(this, 500, 1000)
-        if (PreferenceUtil.showLyrics) {
+        if (shouldShowLyrics()) {
             progressViewUpdateHelper?.start()
+        } else {
+            binding.root.isVisible = false
         }
         // Remove background on Fit theme
         val nps = PreferenceUtil.nowPlayingScreen
@@ -89,9 +106,16 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
         }
         binding.playerLyricsFormat.setOnClickListener {
             val song = MusicPlayerRemote.currentSong
-            if (LyricUtil.getLrcLyricsFile(song) != null &&
-                LyricUtil.getTtmlLyricsFile(song) != null
-            ) {
+            val lrcFile = LyricUtil.getLrcLyricsFile(song)
+            val ttmlFile = LyricUtil.getTtmlLyricsFile(song)
+            val hasLrc = lrcFile?.let {
+                Regex("(?m)^\\s*\\[\\d{1,3}:\\d{2}(?:[.:]\\d{1,3})?\\]")
+                    .containsMatchIn(LyricUtil.getStringFromLrc(it))
+            } == true
+            val hasTtml = ttmlFile?.let {
+                TtmlUtils.hasValidTtml(LyricUtil.getStringFromLrc(it))
+            } == true
+            if (hasLrc && hasTtml) {
                 useTtmlLyrics = !useTtmlLyrics
                 clearTranslation()
                 updateLyrics()
@@ -112,8 +136,8 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
     }
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences, key: String?) {
-        if (key == SHOW_LYRICS) {
-            if (sharedPreferences.getBoolean(key, false) == true) {
+        if (key == SHOW_LYRICS || key == LYRICS_TYPE) {
+            if (shouldShowLyrics()) {
                 progressViewUpdateHelper?.start()
                 binding.root.isVisible = true
                 updateLyrics()
@@ -139,8 +163,11 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
         displayedLineIndex = -1
         useTtmlLyrics = false
         clearTranslation()
-        if (PreferenceUtil.showLyrics) {
+        if (shouldShowLyrics()) {
             updateLyrics()
+        } else {
+            binding.root.isVisible = false
+            progressViewUpdateHelper?.stop()
         }
     }
 
@@ -149,8 +176,11 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
         displayedLine = null
         displayedLineIndex = -1
         clearTranslation()
-        if (PreferenceUtil.showLyrics) {
+        if (shouldShowLyrics()) {
             updateLyrics()
+        } else {
+            binding.root.isVisible = false
+            progressViewUpdateHelper?.stop()
         }
     }
 
@@ -161,6 +191,13 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
         displayedLineIndex = -1
         if (_binding != null) {
             lyricsLayout.animate().cancel()
+            lyricsLine1.animate().cancel()
+            lyricsLine2.animate().cancel()
+            lyricsLayout.alpha = 1f
+            lyricsLine1.alpha = 1f
+            lyricsLine2.alpha = 1f
+            lyricsLine1.translationY = 0f
+            lyricsLine2.translationY = 0f
             lyricsLine1.text = null
             lyricsLine2.text = null
             lyricsLine1.isVisible = false
@@ -356,12 +393,20 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
         super.onResume()
         PreferenceManager.getDefaultSharedPreferences(requireContext())
             .registerOnSharedPreferenceChangeListener(this)
-        if (PreferenceUtil.showLyrics && _binding != null) {
+        if (shouldShowLyrics() && _binding != null) {
             updateLyrics()
+        } else if (_binding != null) {
+            binding.root.isVisible = false
+            progressViewUpdateHelper?.stop()
         }
     }
 
     override fun onDestroyView() {
+        if (_binding != null) {
+            lyricsLayout.animate().cancel()
+            lyricsLine1.animate().cancel()
+            lyricsLine2.animate().cancel()
+        }
         super.onDestroyView()
         PreferenceManager.getDefaultSharedPreferences(requireContext())
             .unregisterOnSharedPreferenceChangeListener(this)

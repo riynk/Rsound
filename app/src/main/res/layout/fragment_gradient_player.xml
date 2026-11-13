@@ -50,7 +50,7 @@
             app:layout_constraintTop_toBottomOf="@id/playerAlbumCoverFragment" />
 
         <androidx.fragment.app.FragmentContainerView
-            android:id="@+id/cover_lyrics"
+            android:id="@+id/gradientLyricsOverlay
             android:name="code.name.monkey.retromusic.fragments.player.CoverLyricsFragment"
             android:layout_width="match_parent"
             android:layout_height="0dp"

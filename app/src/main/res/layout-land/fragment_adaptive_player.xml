@@ -51,7 +51,7 @@
                     tools:layout="@layout/fragment_album_full_card_cover" />
 
                 <androidx.fragment.app.FragmentContainerView
-                    android:id="@+id/cover_lyrics"
+                    android:id="@+id/adaptiveLyricsOverlay
                     android:name="code.name.monkey.retromusic.fragments.player.CoverLyricsFragment"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"

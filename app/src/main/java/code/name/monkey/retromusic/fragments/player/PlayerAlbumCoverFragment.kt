@@ -321,24 +321,40 @@ class PlayerAlbumCoverFragment : AbsMusicServiceFragment(R.layout.fragment_playe
         }
     }
 
+    private fun hasStandaloneLyricsOverlay(): Boolean {
+        val overlayId = when (PreferenceUtil.nowPlayingScreen) {
+            Adaptive -> R.id.adaptiveLyricsOverlay
+            Card -> R.id.cardLyricsOverlay
+            BlurCard -> R.id.cardBlurLyricsOverlay
+            Gradient -> R.id.gradientLyricsOverlay
+            else -> View.NO_ID
+        }
+        return overlayId != View.NO_ID && requireActivity().findViewById<View>(overlayId) != null
+    }
+
     private fun showLyrics(visible: Boolean) {
         binding.coverLyrics.isVisible = false
         binding.lyricsView.isVisible = false
-        binding.playerLyricsTranslate.isVisible = visible && PreferenceUtil.lyricsType == CoverLyricsType.REPLACE_COVER
-        binding.playerLyricsFormat.isVisible = visible && PreferenceUtil.lyricsType == CoverLyricsType.REPLACE_COVER && (hasLrcFormat || hasTtmlFormat)
+        val replaceCover = PreferenceUtil.lyricsType == CoverLyricsType.REPLACE_COVER
+        val standaloneOverlay = hasStandaloneLyricsOverlay() && !replaceCover
+        binding.playerLyricsTranslate.isVisible = visible && replaceCover
+        binding.playerLyricsFormat.isVisible = visible && replaceCover && (hasLrcFormat || hasTtmlFormat)
         binding.viewPager.isVisible = true
-        val lyrics: View = if (PreferenceUtil.lyricsType == CoverLyricsType.REPLACE_COVER) {
+        if (replaceCover) {
             ObjectAnimator.ofFloat(viewPager, View.ALPHA, if (visible) 0F else 1F).start()
-            lrcView
         } else {
             ObjectAnimator.ofFloat(viewPager, View.ALPHA, 1F).start()
-            binding.coverLyrics
         }
-        ObjectAnimator.ofFloat(lyrics, View.ALPHA, if (visible) 1F else 0F).apply {
-            doOnEnd {
-                lyrics.isVisible = visible
+        val lyrics: View? = when {
+            replaceCover -> lrcView
+            standaloneOverlay -> null
+            else -> binding.coverLyrics
+        }
+        if (lyrics != null) {
+            ObjectAnimator.ofFloat(lyrics, View.ALPHA, if (visible) 1F else 0F).apply {
+                doOnEnd { lyrics.isVisible = visible }
+                start()
             }
-            start()
         }
     }
 
