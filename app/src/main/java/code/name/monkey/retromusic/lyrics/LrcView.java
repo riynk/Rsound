@@ -77,6 +77,8 @@ public class LrcView extends View {
     private Scroller mScroller;
     private float mOffset;
     private int mCurrentLine;
+    private int mWordHighlightLine = -1;
+    private long mCurrentTime;
     private Object mFlag;
     private boolean isShowTimeline;
     private boolean isTouching;
@@ -387,15 +389,36 @@ public class LrcView extends View {
                         return;
                     }
 
+                    mCurrentTime = time;
                     int line = findShowLine(time);
                     if (line != mCurrentLine) {
                         mCurrentLine = line;
                         if (!isShowTimeline) {
                             smoothScrollTo(line);
-                        } else {
-                            invalidate();
                         }
                     }
+
+                    if (mWordHighlightLine >= 0 && mWordHighlightLine < mLrcEntryList.size()
+                            && mWordHighlightLine != line) {
+                        LrcEntry previous = mLrcEntryList.get(mWordHighlightLine);
+                        if (previous.hasWordTimings()) {
+                            previous.updateWordHighlight(
+                                    mLrcPaint, (int) getLrcWidth(), mTextGravity, time,
+                                    mCurrentTextColor, mNormalTextColor);
+                        }
+                    }
+                    if (line >= 0 && line < mLrcEntryList.size()) {
+                        LrcEntry current = mLrcEntryList.get(line);
+                        if (current.hasWordTimings()) {
+                            current.updateWordHighlight(
+                                    mLrcPaint, (int) getLrcWidth(), mTextGravity, time,
+                                    mCurrentTextColor, mNormalTextColor);
+                            mWordHighlightLine = line;
+                        } else {
+                            mWordHighlightLine = -1;
+                        }
+                    }
+                    invalidate();
                 });
     }
 
@@ -539,6 +562,8 @@ public class LrcView extends View {
         mLrcEntryList.clear();
         mOffset = 0;
         mCurrentLine = 0;
+        mWordHighlightLine = -1;
+        mCurrentTime = 0L;
     }
 
     private void smoothScrollTo(int line) {
