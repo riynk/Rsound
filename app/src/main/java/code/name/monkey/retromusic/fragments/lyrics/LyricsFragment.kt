@@ -21,6 +21,7 @@ import android.os.Bundle
 import android.provider.MediaStore
 import android.text.InputType
 import android.view.*
+import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -44,11 +45,14 @@ import code.name.monkey.retromusic.helper.MusicProgressViewUpdateHelper
 import code.name.monkey.retromusic.lyrics.LrcView
 import code.name.monkey.retromusic.model.AudioTagInfo
 import code.name.monkey.retromusic.model.Song
+import code.name.monkey.retromusic.network.OnlineLyricsRepository
 import code.name.monkey.retromusic.util.FileUtils
 import code.name.monkey.retromusic.util.LyricUtil
 import code.name.monkey.retromusic.util.UriUtil
 import com.afollestad.materialdialogs.input.input
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
 import java.io.File
@@ -203,7 +207,47 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
                 loadLRCLyrics()
                 true
             }
+            R.id.action_download_lyrics -> {
+                downloadOnlineLyrics()
+                true
+            }
             else -> false
+        }
+    }
+
+    private fun downloadOnlineLyrics() {
+        val requestedSong = song
+        viewLifecycleOwner.lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                OnlineLyricsRepository.download(requestedSong)
+            }
+            if (!isAdded || requestedSong.data != MusicPlayerRemote.currentSong.data) return@launch
+
+            when (result) {
+                is OnlineLyricsRepository.DownloadResult.Saved -> {
+                    useTtmlLyrics = false
+                    loadLyrics()
+                    Toast.makeText(
+                        requireContext(),
+                        getString(R.string.lyrics_saved, result.format),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                OnlineLyricsRepository.DownloadResult.NotFound -> {
+                    Toast.makeText(
+                        requireContext(),
+                        R.string.lyrics_not_found,
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                is OnlineLyricsRepository.DownloadResult.Failed -> {
+                    Toast.makeText(
+                        requireContext(),
+                        R.string.lyrics_download_failed,
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
         }
     }
 
