@@ -128,10 +128,33 @@ public final class TtmlUtils {
                                     long wordEnd = span.end >= 0
                                         ? paragraphStart + span.parentOffset + span.end
                                         : (span.duration >= 0 ? wordStart + span.duration : -1L);
-                                    words.add(new LrcEntry.WordTiming(
-                                        wordStart, wordEnd, span.startIndex, spanEnd,
-                                        span.background
-                                    ));
+                                    String segmentText = text.substring(span.startIndex, spanEnd);
+                                    java.util.regex.Matcher tokenMatcher =
+                                        java.util.regex.Pattern.compile("[^\\s\\u00A0\\-\\u2010\\u2013\\u2014]+")
+                                            .matcher(segmentText);
+                                    List<int[]> tokens = new ArrayList<>();
+                                    while (tokenMatcher.find()) {
+                                        tokens.add(new int[] { tokenMatcher.start(), tokenMatcher.end() });
+                                    }
+                                    long segmentDuration = Math.max(0L, wordEnd - wordStart);
+                                    for (int tokenIndex = 0; tokenIndex < tokens.size(); tokenIndex++) {
+                                        int[] token = tokens.get(tokenIndex);
+                                        long tokenStart = wordStart;
+                                        long tokenEnd = wordEnd;
+                                        if (tokens.size() > 1 && segmentDuration > 0L) {
+                                            tokenStart = wordStart + (segmentDuration * tokenIndex / tokens.size());
+                                            tokenEnd = wordStart + (segmentDuration * (tokenIndex + 1) / tokens.size());
+                                        }
+                                        boolean continuesWord = tokens.size() == 1 &&
+                                            !segmentText.isEmpty() &&
+                                            !Character.isWhitespace(segmentText.charAt(segmentText.length() - 1)) &&
+                                            "-–—‐".indexOf(segmentText.charAt(segmentText.length() - 1)) < 0;
+                                        words.add(new LrcEntry.WordTiming(
+                                            tokenStart, tokenEnd,
+                                            span.startIndex + token[0], span.startIndex + token[1],
+                                            span.background, continuesWord, false
+                                        ));
+                                    }
                                     if (!spans.isEmpty()) spans.peek().hasTimedChild = true;
                                 }
                             }
@@ -154,7 +177,8 @@ public final class TtmlUtils {
                             int to = Math.min(line.length(), word.endIndex - trimStart);
                             if (to > from) {
                                 normalized.add(new LrcEntry.WordTiming(
-                                    word.start, word.end, from, to, word.background
+                                    word.start, word.end, from, to, word.background,
+                                    word.continuesWord, false
                                 ));
                             }
                         }
@@ -165,6 +189,10 @@ public final class TtmlUtils {
                                 word.end = i + 1 < normalized.size()
                                     ? normalized.get(i + 1).start
                                     : word.start + 1000L;
+                            }
+                            if (i + 1 < normalized.size()) {
+                                long gap = normalized.get(i + 1).start - word.end;
+                                if (gap > 50L) word.sustained = true;
                             }
                         }
 
