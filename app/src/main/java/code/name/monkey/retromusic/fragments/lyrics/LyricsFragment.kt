@@ -399,7 +399,11 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
      */
     private fun updateLyricsFormatAction() {
         val item = binding.toolbar.menu.findItem(R.id.action_lyrics_format) ?: return
-        val hasLrc = LyricUtil.getLrcLyricsFile(song) != null
+        val lrcFile = LyricUtil.getLrcLyricsFile(song)
+        val hasLrc = lrcFile?.let { file ->
+            Regex("(?m)^\\s*\\[\\d{1,3}:\\d{2}(?:[.:]\\d{1,3})?\\]")
+                .containsMatchIn(LyricUtil.getStringFromLrc(file))
+        } == true
         val hasTtml = LyricUtil.getTtmlLyricsFile(song) != null
         item.isVisible = hasLrc && hasTtml
         item.title = getString(
