@@ -36,6 +36,8 @@
             android:visibility="gone"
             app:layout_behavior="com.google.android.material.appbar.AppBarLayout$ScrollingViewBehavior"
             app:lrcLabel="@string/no_lyrics_found"
+            app:lrcCurrentTextColor="@color/md_white_1000"
+            app:lrcNormalTextColor="@color/md_grey_200"
             app:lrcNormalTextSize="28sp"
             app:lrcPadding="24dp"
             app:lrcTextGravity="center"

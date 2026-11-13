@@ -34,6 +34,7 @@
         android:paddingVertical="4dp"
         android:text="LRC"
         android:textAllCaps="true"
+        android:textColor="@color/md_white_1000"
         android:textSize="10sp"
         android:textStyle="bold"
         android:visibility="gone"

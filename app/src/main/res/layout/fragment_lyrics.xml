@@ -67,6 +67,7 @@
                 android:layout_height="wrap_content"
                 android:padding="@dimen/normal_lyrics_padding"
                 android:textIsSelectable="true"
+                android:textColor="@color/md_white_1000"
                 android:textSize="@dimen/lyrics_text_size"
                 android:textStyle="bold"
                 tools:text="@tools:sample/lorem[100]" />
@@ -78,6 +79,7 @@
             android:layout_height="match_parent"
             app:layout_behavior="com.google.android.material.appbar.AppBarLayout$ScrollingViewBehavior"
             app:lrcLabel="@string/no_lyrics_found"
+            app:lrcCurrentTextColor="@color/md_white_1000"
             app:lrcNormalTextColor="@color/md_grey_200"
             app:lrcNormalTextSize="24sp"
             app:lrcPadding="8dp"
@@ -90,6 +92,7 @@
             android:layout_height="match_parent"
             android:gravity="center"
             android:text="@string/no_lyrics_found"
+            android:textColor="@color/md_white_1000"
             android:textSize="24sp"
             android:visibility="gone" />
     </FrameLayout>
