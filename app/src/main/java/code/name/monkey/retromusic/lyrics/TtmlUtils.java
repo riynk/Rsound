@@ -281,7 +281,7 @@ public final class TtmlUtils {
                     SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE);
 
                 for (LrcEntry.WordTiming word : entry.getWordTimings()) {
-                    int start = lineStart + Math.max(0, Math.min(word.startIndex, entry.getText().length()));
+                    int start = lineStart + Math.max(0, Math.min(word.startIndex, entry.getShowText().length()));
                     int end = lineStart + Math.max(0, Math.min(word.endIndex, entry.getShowText().length()));
                     if (end <= start) continue;
                     long duration = Math.max(1L, word.end - word.start);
