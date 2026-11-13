@@ -44,39 +44,97 @@ public final class TtmlUtils {
             try {
                 parser.setFeature(XmlPullParser.FEATURE_PROCESS_DOCDECL, false);
             } catch (Exception ignored) {
-                // The Android parser may not expose this optional feature.
+                // Optional parser feature; external entities are never resolved by this reader.
             }
             parser.setInput(new StringReader(xml));
 
             int event = parser.getEventType();
             while (event != XmlPullParser.END_DOCUMENT) {
                 if (event == XmlPullParser.START_TAG && "p".equals(parser.getName())) {
-                    String begin = attribute(parser, "begin");
-                    long start = parseTime(begin);
+                    long paragraphStart = parseTime(attribute(parser, "begin"));
+                    if (paragraphStart < 0) paragraphStart = 0L;
+
                     StringBuilder text = new StringBuilder();
-                    int depth = 1;
-                    while (depth > 0) {
+                    List<LrcEntry.WordTiming> words = new ArrayList<>();
+                    java.util.ArrayDeque<SpanFrame> spans = new java.util.ArrayDeque<>();
+                    int paragraphDepth = 1;
+
+                    while (paragraphDepth > 0) {
                         event = parser.next();
                         if (event == XmlPullParser.END_DOCUMENT) break;
+
                         if (event == XmlPullParser.START_TAG) {
-                            depth++;
-                            if ("br".equals(parser.getName())) {
+                            paragraphDepth++;
+                            String tag = parser.getName();
+                            if ("span".equals(tag)) {
+                                spans.push(new SpanFrame(
+                                    text.length(),
+                                    parseTime(attribute(parser, "begin")),
+                                    parseTime(attribute(parser, "end")),
+                                    parseTime(attribute(parser, "dur"))
+                                ));
+                            } else if ("br".equals(tag)) {
                                 text.append('\n');
-                            } else if (start < 0) {
-                                long nestedStart = parseTime(attribute(parser, "begin"));
-                                if (nestedStart >= 0) start = nestedStart;
                             }
                         } else if (event == XmlPullParser.TEXT ||
                                 event == XmlPullParser.CDSECT ||
                                 event == XmlPullParser.ENTITY_REF) {
                             if (parser.getText() != null) text.append(parser.getText());
                         } else if (event == XmlPullParser.END_TAG) {
-                            depth--;
+                            if ("span".equals(parser.getName()) && !spans.isEmpty()) {
+                                SpanFrame span = spans.pop();
+                                int spanEnd = text.length();
+                                if (span.begin >= 0 && spanEnd > span.startIndex) {
+                                    long wordStart = paragraphStart + span.begin;
+                                    long wordEnd = span.end >= 0
+                                        ? paragraphStart + span.end
+                                        : (span.duration >= 0 ? wordStart + span.duration : -1L);
+                                    words.add(new LrcEntry.WordTiming(
+                                        wordStart, wordEnd, span.startIndex, spanEnd
+                                    ));
+                                    if (!spans.isEmpty()) spans.peek().hasTimedChild = true;
+                                }
+                            }
+                            paragraphDepth--;
                         }
                     }
+
                     String line = text.toString().replace('\u00A0', ' ').trim();
-                    if (start >= 0 && !line.isEmpty()) {
-                        entries.add(new LrcEntry(start, line));
+                    if (!line.isEmpty()) {
+                        int trimStart = 0;
+                        while (trimStart < text.length() &&
+                            Character.isWhitespace(text.charAt(trimStart))) trimStart++;
+                        int trimEnd = text.length();
+                        while (trimEnd > trimStart &&
+                            Character.isWhitespace(text.charAt(trimEnd - 1))) trimEnd--;
+
+                        List<LrcEntry.WordTiming> normalized = new ArrayList<>();
+                        for (LrcEntry.WordTiming word : words) {
+                            int from = Math.max(0, word.startIndex - trimStart);
+                            int to = Math.min(line.length(), word.endIndex - trimStart);
+                            if (to > from) {
+                                normalized.add(new LrcEntry.WordTiming(
+                                    word.start, word.end, from, to
+                                ));
+                            }
+                        }
+                        Collections.sort(normalized, (a, b) -> Long.compare(a.start, b.start));
+                        for (int i = 0; i < normalized.size(); i++) {
+                            LrcEntry.WordTiming word = normalized.get(i);
+                            if (word.end <= word.start) {
+                                word.end = i + 1 < normalized.size()
+                                    ? normalized.get(i + 1).start
+                                    : word.start + 1000L;
+                            }
+                        }
+
+                        long lineStart = paragraphStart;
+                        if (!normalized.isEmpty()) {
+                            lineStart = Math.min(lineStart, normalized.get(0).start);
+                        }
+                        LrcEntry entry = new LrcEntry(lineStart, line);
+                        entry.setWordTimings(normalized);
+                        entries.add(entry);
                     }
                 }
                 event = parser.next();
@@ -86,6 +144,21 @@ public final class TtmlUtils {
         }
         Collections.sort(entries);
         return entries;
+    }
+
+    private static final class SpanFrame {
+        final int startIndex;
+        final long begin;
+        final long end;
+        final long duration;
+        boolean hasTimedChild;
+
+        SpanFrame(int startIndex, long begin, long end, long duration) {
+            this.startIndex = startIndex;
+            this.begin = begin;
+            this.end = end;
+            this.duration = duration;
+        }
     }
 
     private static String attribute(XmlPullParser parser, String name) {
