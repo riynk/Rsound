@@ -17,6 +17,7 @@ import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
@@ -52,6 +53,7 @@ class CoverLrcView @JvmOverloads constructor(
     private val mLrcEntryList: MutableList<LrcEntry> = ArrayList()
     private val mLrcPaint = TextPaint()
     private val mTimePaint = TextPaint()
+    private val mTtmlDotPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private var mTimeFontMetrics: Paint.FontMetrics? = null
     private var mPlayDrawable: Drawable? = null
     private var mDividerHeight = 0f
@@ -75,6 +77,9 @@ class CoverLrcView @JvmOverloads constructor(
     private var mCurrentLine = 0
     private var mCurrentPlaybackTime = 0L
     private var mWordHighlightTime = -1L
+    private var mTtmlMode = false
+    private var mCurrentLineScale = 1f
+    private var mLineScaleAnimator: ValueAnimator? = null
     private var onLrcLoadedListener: (() -> Unit)? = null
     private var isShowTimeline = false
     private var isTouching = false
@@ -384,6 +389,7 @@ class CoverLrcView @JvmOverloads constructor(
                     }
                 }
                 mCurrentLine = line
+                if (mTtmlMode) animateTtmlLineFocus() else mCurrentLineScale = 1f
                 if (!isShowTimeline) {
                     smoothScrollTo(line)
                     animateCurrentTextSize()
@@ -460,7 +466,105 @@ class CoverLrcView @JvmOverloads constructor(
                 mLrcPaint.textSize = mNormalTextSize
                 mLrcPaint.color = mNormalTextColor
             }
-            drawText(canvas, mLrcEntryList[i].staticLayout, y)
+            val layout = mLrcEntryList[i].staticLayout
+            if (mTtmlMode) {
+                val distance = abs(i - mCurrentLine)
+                val alpha = when (distance) {
+                    0 -> 255
+                    1 -> 191
+                    2 -> 128
+                    else -> 71
+                }
+                val layer = canvas.saveLayerAlpha(
+                    0f, y - (layout.height / 2f), width.toFloat(),
+                    y + (layout.height / 2f), alpha
+                )
+                if (i == mCurrentLine) {
+                    canvas.save()
+                    canvas.scale(mCurrentLineScale, mCurrentLineScale, width / 2f, y)
+                    drawText(canvas, layout, y)
+                    canvas.restore()
+                } else {
+                    drawText(canvas, layout, y)
+                }
+                canvas.restoreToCount(layer)
+            } else {
+                drawText(canvas, layout, y)
+            }
+
+            if (mTtmlMode) {
+                val nextIndex = i + 1
+                if (nextIndex < mLrcEntryList.size &&
+                    mLrcEntryList[nextIndex].time != mLrcEntryList[i].time) {
+                    var lineEnd = mLrcEntryList[i].getWordEndTime()
+                    for (previous in i - 1 downTo 0) {
+                        if (mLrcEntryList[previous].time != mLrcEntryList[i].time) break
+                        lineEnd = maxOf(lineEnd, mLrcEntryList[previous].getWordEndTime())
+                    }
+                    val nextStart = mLrcEntryList[nextIndex].time
+                    val gapDuration = nextStart - lineEnd
+                    if (gapDuration > 7000L && mCurrentPlaybackTime >= lineEnd &&
+                        mCurrentPlaybackTime < nextStart) {
+                        drawTtmlGapDots(
+                            canvas,
+                            y + (layout.height / 2f) + (mDividerHeight / 2f),
+                            mCurrentPlaybackTime - lineEnd,
+                            gapDuration
+                        )
+                    }
+                }
+            }
+        }
+        if (mTtmlMode && mLrcEntryList.isNotEmpty()) {
+            val firstLineStart = mLrcEntryList.first().time
+            if (firstLineStart > 7000L && mCurrentPlaybackTime >= 0L &&
+                mCurrentPlaybackTime < firstLineStart) {
+                drawTtmlGapDots(
+                    canvas, height / 2f - mOffset, mCurrentPlaybackTime, firstLineStart
+                )
+            }
+        }
+    }
+
+    private fun drawTtmlGapDots(canvas: Canvas, baseline: Float, elapsed: Long, duration: Long) {
+        val density = resources.displayMetrics.density
+        val appearDuration = maxOf(1L, duration / 4L)
+        val centerX = width / 2f
+        val spacing = 13f * density
+        val remaining = maxOf(0L, duration - elapsed)
+        for (i in 0..2) {
+            val appearAt = appearDuration * (i + 1)
+            val progress = ((elapsed - appearAt).toFloat() / appearDuration).coerceIn(0f, 1f)
+            var color = blendColor(mNormalTextColor, mCurrentTextColor, progress)
+            if (i == 2 && remaining <= 500L) color = mCurrentTextColor
+            val radius = (2.5f + 1.5f * progress) * density
+            mTtmlDotPaint.color = color
+            mTtmlDotPaint.alpha = if (progress <= 0f) 90 else 255
+            canvas.drawCircle(centerX + (i - 1) * spacing, baseline, radius, mTtmlDotPaint)
+        }
+    }
+
+    private fun blendColor(from: Int, to: Int, fraction: Float): Int {
+        val amount = fraction.coerceIn(0f, 1f)
+        return Color.argb(
+            (Color.alpha(from) + (Color.alpha(to) - Color.alpha(from)) * amount).toInt(),
+            (Color.red(from) + (Color.red(to) - Color.red(from)) * amount).toInt(),
+            (Color.green(from) + (Color.green(to) - Color.green(from)) * amount).toInt(),
+            (Color.blue(from) + (Color.blue(to) - Color.blue(from)) * amount).toInt()
+        )
+    }
+
+    private fun animateTtmlLineFocus() {
+        mLineScaleAnimator?.cancel()
+        mCurrentLineScale = 1f
+        mLineScaleAnimator = ValueAnimator.ofFloat(1f, 1.05f).apply {
+            duration = 220L
+            interpolator = android.view.animation.OvershootInterpolator(0.65f)
+            addUpdateListener {
+                mCurrentLineScale = it.animatedValue as Float
+                invalidate()
+            }
+            start()
         }
     }
 
@@ -520,6 +624,7 @@ class CoverLrcView @JvmOverloads constructor(
 
     override fun onDetachedFromWindow() {
         loadGeneration++
+        mLineScaleAnimator?.cancel()
         removeCallbacks(hideTimelineRunnable)
         viewScope.cancel()
         super.onDetachedFromWindow()
@@ -530,6 +635,7 @@ class CoverLrcView @JvmOverloads constructor(
             mLrcEntryList.addAll(entryList)
         }
         mLrcEntryList.sort()
+        mTtmlMode = mLrcEntryList.firstOrNull()?.isTtml() == true
         initEntryList()
         invalidate()
         onLrcLoadedListener?.invoke()
@@ -555,6 +661,9 @@ class CoverLrcView @JvmOverloads constructor(
 
     fun reset() {
         loadGeneration++
+        mTtmlMode = false
+        mCurrentLineScale = 1f
+        mLineScaleAnimator?.cancel()
         endAnimation()
         mScroller!!.forceFinished(true)
         isShowTimeline = false

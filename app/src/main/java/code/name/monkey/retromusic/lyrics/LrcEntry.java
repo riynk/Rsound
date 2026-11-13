@@ -46,6 +46,8 @@ class LrcEntry implements Comparable<LrcEntry> {
   private final List<WordTiming> wordTimings = new ArrayList<>();
   private int textGravity = -1;
   private String speaker;
+  private boolean ttml;
+  private long ttmlLineEndTime = -1L;
   /** 歌词距离视图顶部的距离 */
   private float offset = Float.MIN_VALUE;
 
@@ -107,6 +109,18 @@ class LrcEntry implements Comparable<LrcEntry> {
 
   String getSpeaker() {
     return speaker;
+  }
+
+  void setTtml(boolean ttml) {
+    this.ttml = ttml;
+  }
+
+  boolean isTtml() {
+    return ttml;
+  }
+
+  void setTtmlLineEndTime(long endTime) {
+    this.ttmlLineEndTime = endTime;
   }
 
   boolean hasWordTimings() {
@@ -237,7 +251,7 @@ class LrcEntry implements Comparable<LrcEntry> {
   }
 
   long getWordEndTime() {
-    long end = time;
+    long end = Math.max(time, ttmlLineEndTime);
     for (WordTiming word : wordTimings) {
       if (word.end > end) end = word.end;
     }
@@ -277,6 +291,20 @@ class LrcEntry implements Comparable<LrcEntry> {
 
   private CharSequence buildDisplayText(CharSequence source, int translationColor) {
     SpannableStringBuilder styled = new SpannableStringBuilder(source);
+    if (!TextUtils.isEmpty(secondText)) {
+      int backgroundStart = text.length() + 1;
+      int backgroundEnd = Math.min(styled.length(), backgroundStart + secondText.length());
+      if (backgroundEnd > backgroundStart) {
+        styled.setSpan(new RelativeSizeSpan(0.78f), backgroundStart, backgroundEnd,
+            SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE);
+        styled.setSpan(new StyleSpan(Typeface.BOLD_ITALIC), backgroundStart, backgroundEnd,
+            SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE);
+        int alpha = Math.min(190, Math.max(96, ((translationColor >>> 24) & 0xFF) * 3 / 4));
+        int backgroundColor = (translationColor & 0x00FFFFFF) | (alpha << 24);
+        styled.setSpan(new ForegroundColorSpan(backgroundColor), backgroundStart, backgroundEnd,
+            SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE);
+      }
+    }
     appendTranslation(styled, translationColor);
     return styled;
   }

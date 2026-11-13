@@ -461,7 +461,7 @@ public class LrcView extends View {
                     int line = findShowLine(time);
                     if (line != mCurrentLine) {
                         mCurrentLine = line;
-                        if (mLrcEntryList.get(line).hasWordTimings()) {
+                        if (mLrcEntryList.get(line).isTtml()) {
                             animateTtmlLineFocus();
                         } else {
                             mCurrentLineScale = 1f;
@@ -537,7 +537,7 @@ public class LrcView extends View {
 
         canvas.translate(0, mOffset);
 
-        boolean ttmlMode = mLrcEntryList.get(mCurrentLine).hasWordTimings();
+        boolean ttmlMode = mLrcEntryList.get(0).isTtml();
         float y = 0;
         for (int i = 0; i < mLrcEntryList.size(); i++) {
             if (i > 0) {

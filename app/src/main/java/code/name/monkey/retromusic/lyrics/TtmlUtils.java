@@ -74,6 +74,9 @@ public final class TtmlUtils {
         for (LrcEntry original : source) {
             LrcEntry copy = new LrcEntry(original.getTime(), original.getText(), original.getSecondText());
             copy.setSpeaker(original.getSpeaker());
+            copy.setTtml(original.isTtml());
+            copy.setTtmlLineEndTime(original.getWordEndTime() > original.getTime()
+                ? original.getWordEndTime() : -1L);
             List<LrcEntry.WordTiming> timings = new ArrayList<>();
             for (LrcEntry.WordTiming word : original.getWordTimings()) {
                 timings.add(new LrcEntry.WordTiming(
@@ -108,6 +111,7 @@ public final class TtmlUtils {
             while (event != XmlPullParser.END_DOCUMENT) {
                 if (event == XmlPullParser.START_TAG && "p".equals(parser.getName())) {
                     long parsedParagraphStart = parseTime(attribute(parser, "begin"));
+                    long parsedParagraphEnd = parseTime(attribute(parser, "end"));
                     long paragraphStart = Math.max(0L, parsedParagraphStart);
                     String speaker = attribute(parser, "agent");
                     boolean paragraphBackground = "x-bg".equals(attribute(parser, "role"));
@@ -282,6 +286,8 @@ public final class TtmlUtils {
                             entry.setWordTimings(normalized);
                         }
                         entry.setSpeaker(speaker);
+                        entry.setTtml(true);
+                        entry.setTtmlLineEndTime(parsedParagraphEnd);
                         entries.add(entry);
                     }
                 }
