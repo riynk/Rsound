@@ -6,4 +6,10 @@
         android:icon="@drawable/ic_search"
         android:title="@string/action_search"
         app:showAsAction="always" />
+    <item
+        android:id="@+id/action_lyrics_format"
+        android:icon="@drawable/ic_ttml"
+        android:title="@string/switch_to_ttml"
+        android:visible="false"
+        app:showAsAction="ifRoom" />
 </menu>
