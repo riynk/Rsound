@@ -1,0 +1,144 @@
+
+name: Replace Repository from ZIP
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: replace-main
+  cancel-in-progress: false
+
+jobs:
+  replace:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Backup current main
+        run: |
+          git push origin \
+            "HEAD:refs/heads/backup-before-zip-${GITHUB_RUN_ID}"
+
+      - name: Download ZIP
+        run: |
+          set -euo pipefail
+
+          curl --fail --location \
+            --retry 3 \
+            --max-time 600 \
+            "https://github.com/RetroMusicPlayer/RetroMusicPlayer/archive/refs/tags/v7.0.3.zip" \
+            -o "$RUNNER_TEMP/source.zip"
+
+      - name: Validate and extract ZIP
+        run: |
+          set -euo pipefail
+
+          mkdir -p "$RUNNER_TEMP/extracted"
+
+          python3 - "$RUNNER_TEMP/source.zip" "$RUNNER_TEMP/extracted" <<'PY'
+          import sys
+          import zipfile
+          from pathlib import PurePosixPath
+
+          with zipfile.ZipFile(sys.argv[1]) as z:
+              for info in z.infolist():
+                  path = PurePosixPath(info.filename)
+                  mode = info.external_attr >> 16
+
+                  if "\\" in info.filename:
+                      raise SystemExit("Invalid ZIP path")
+
+                  if path.is_absolute() or ".." in path.parts:
+                      raise SystemExit("Unsafe ZIP path")
+
+                  if ".git" in path.parts:
+                      raise SystemExit("Unexpected .git directory")
+
+                  if (mode & 0o170000) == 0o120000:
+                      raise SystemExit("Symlink rejected")
+
+              z.extractall(sys.argv[2])
+          PY
+
+      - name: Locate source and validate project
+        id: source
+        run: |
+          set -euo pipefail
+
+          mapfile -t ITEMS < <(
+            find "$RUNNER_TEMP/extracted" \
+              -mindepth 1 -maxdepth 1 \
+              ! -name '__MACOSX'
+          )
+
+          if [ "${#ITEMS[@]}" -eq 1 ] && [ -d "${ITEMS[0]}" ]; then
+            SOURCE="${ITEMS[0]}"
+          else
+            SOURCE="$RUNNER_TEMP/extracted"
+          fi
+
+          test -d "$SOURCE/app"
+          test -f "$SOURCE/gradlew"
+
+          echo "path=$SOURCE" >> "$GITHUB_OUTPUT"
+
+      - name: Preserve workflow
+        run: |
+          mkdir -p "$RUNNER_TEMP/preserve"
+
+          cp .github/workflows/replace-from-zip.yml \
+            "$RUNNER_TEMP/preserve/replace-from-zip.yml"
+
+      - name: Replace repository
+        env:
+          SOURCE: ${{ steps.source.outputs.path }}
+        run: |
+          set -euo pipefail
+
+          rsync -a --delete \
+            --exclude='.git/' \
+            "$SOURCE/" "$GITHUB_WORKSPACE/"
+
+          mkdir -p .github/workflows
+
+          cp "$RUNNER_TEMP/preserve/replace-from-zip.yml" \
+            .github/workflows/replace-from-zip.yml
+
+      - name: Audit
+        run: |
+          set -euo pipefail
+
+          test -d .git
+          test -d app
+          test -f gradlew
+          test -f .github/workflows/replace-from-zip.yml
+
+          git status --short
+          git diff --stat
+
+      - name: Commit and push
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No changes detected."
+            exit 0
+          fi
+
+          git commit -m "Replace repository with RetroMusicPlayer v7.0.3"
+
+          git push origin HEAD:main
+          
