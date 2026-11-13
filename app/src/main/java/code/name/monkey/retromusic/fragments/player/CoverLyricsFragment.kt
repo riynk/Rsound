@@ -280,10 +280,12 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
         translatedLines = emptyList()
         if (!translationEnabled || rows.isEmpty() || _binding == null) {
             if (_binding != null) {
-                                            }
+                displayedLine = null
+                displayedLineIndex = -1
+            }
             return
         }
-                        val requestedSong = MusicPlayerRemote.currentSong
+        val requestedSong = MusicPlayerRemote.currentSong
         val source = translationSource
         val target = translationTarget
         translationJob = lifecycleScope.launch {
@@ -293,9 +295,7 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
             if (_binding == null || requestedSong.data != MusicPlayerRemote.currentSong.data ||
                 !translationEnabled || source != translationSource || target != translationTarget) return@launch
             translationJob = null
-            translatedLines = result.getOrElse {
-                                return@launch
-            }
+            translatedLines = result.getOrElse { emptyList() }
             onUpdateProgressViews(MusicPlayerRemote.position, MusicPlayerRemote.songDurationMillis)
         }
     }
@@ -304,8 +304,8 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
         translationJob?.cancel()
         translationJob = null
         translatedLines = emptyList()
-        if (_binding != null) {
-                                }
+        displayedLine = null
+        displayedLineIndex = -1
     }
 
     private fun isLyricsLayoutVisible(): Boolean {

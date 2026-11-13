@@ -398,6 +398,7 @@ class CoverLrcView @JvmOverloads constructor(
                 }
             }
             mWordHighlightTime = if (hasTimedWords) activeTime else -1L
+            invalidate()
         }
     }
 
@@ -582,7 +583,7 @@ class CoverLrcView @JvmOverloads constructor(
 
     private fun findShowLine(time: Long): Int {
         var left = 0
-        var right = mLrcEntryList.size
+        var right = mLrcEntryList.size - 1
         while (left <= right) {
             val middle = (left + right) / 2
             val middleTime = mLrcEntryList[middle].time

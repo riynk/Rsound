@@ -107,7 +107,7 @@ class PlayerAlbumCoverFragment : AbsMusicServiceFragment(R.layout.fragment_playe
                 val lrcFile = LyricUtil.getLrcLyricsFile(song)
                 val ttmlFile = LyricUtil.getTtmlLyricsFile(song)
                 val lrcHasTimestamps = lrcFile?.let {
-                    Regex("(?m)^\\\\s*\\\\[\\\\d{1,3}:\\\\d{2}(?:[.:]\\\\d{1,3})?\\\\]")
+                    Regex("(?m)^\\s*\\[\\d{1,3}:\\d{2}(?:[.:]\\d{1,3})?\\]")
                         .containsMatchIn(LyricUtil.getStringFromLrc(it))
                 } == true
                 hasLrcFormat = lrcHasTimestamps
@@ -130,7 +130,7 @@ class PlayerAlbumCoverFragment : AbsMusicServiceFragment(R.layout.fragment_playe
             }
             if (_binding == null || requestToken != lyricsLoadToken) return@launch
             binding.playerLyricsFormat.text = result.third
-            binding.playerLyricsFormat.isVisible = result.third.isNotBlank()
+            binding.playerLyricsFormat.isVisible = PreferenceUtil.lyricsType == CoverLyricsType.REPLACE_COVER && result.third.isNotBlank()
             binding.playerLyricsFormat.isClickable = hasLrcFormat && hasTtmlFormat
             if (result.first != null) {
                 lrcView.loadLrc(result.first)
