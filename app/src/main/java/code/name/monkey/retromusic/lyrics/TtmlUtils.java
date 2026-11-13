@@ -176,7 +176,7 @@ public final class TtmlUtils {
             LrcEntry entry = findLine(timeMs);
             if (entry == null) return "";
             SpannableString result = new SpannableString(entry.getText());
-            for (LrcEntry.WordTiming word : entry.wordTimings) {
+            for (LrcEntry.WordTiming word : entry.getWordTimings()) {
                 int start = Math.max(0, Math.min(word.startIndex, result.length()));
                 int end = Math.max(start, Math.min(word.endIndex, result.length()));
                 if (end <= start) continue;
