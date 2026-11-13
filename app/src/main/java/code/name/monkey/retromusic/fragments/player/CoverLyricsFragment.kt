@@ -238,6 +238,9 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
         super.onResume()
         PreferenceManager.getDefaultSharedPreferences(requireContext())
             .registerOnSharedPreferenceChangeListener(this)
+        if (PreferenceUtil.showLyrics && _binding != null) {
+            updateLyrics()
+        }
     }
 
     override fun onDestroyView() {
