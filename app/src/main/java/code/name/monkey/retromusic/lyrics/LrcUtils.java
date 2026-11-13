@@ -35,9 +35,9 @@ import java.util.regex.Pattern;
 /** 工具类 */
 class LrcUtils {
   private static final Pattern PATTERN_LINE =
-      Pattern.compile("((\\[\\d\\d:\\d\\d\\.\\d{2,3}\\])+)(.+)");
+      Pattern.compile("((\\[\\d{1,3}:\\d{2}(?:\\.\\d{1,3})?\\])+)(.+)");
   private static final Pattern PATTERN_TIME =
-      Pattern.compile("\\[(\\d\\d):(\\d\\d)\\.(\\d{2,3})\\]");
+      Pattern.compile("\\[(\\d{1,3}):(\\d{2})(?:\\.(\\d{1,3}))?\\]");
 
   /** 从文件解析双语歌词 */
   static List<LrcEntry> parseLrc(File[] lrcFiles) {
@@ -186,10 +186,14 @@ class LrcUtils {
       long min = Long.parseLong(timeMatcher.group(1));
       long sec = Long.parseLong(timeMatcher.group(2));
       String milString = timeMatcher.group(3);
-      long mil = Long.parseLong(milString);
-      // 如果毫秒是两位数，需要乘以10
-      if (milString.length() == 2) {
-        mil = mil * 10;
+      long mil = 0L;
+      if (milString != null) {
+        mil = Long.parseLong(milString);
+        if (milString.length() == 1) {
+          mil *= 100;
+        } else if (milString.length() == 2) {
+          mil *= 10;
+        }
       }
       long time = min * DateUtils.MINUTE_IN_MILLIS + sec * DateUtils.SECOND_IN_MILLIS + mil;
       entryList.add(new LrcEntry(time, text));
