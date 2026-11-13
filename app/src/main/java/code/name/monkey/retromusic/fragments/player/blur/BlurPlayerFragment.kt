@@ -38,7 +38,7 @@ import code.name.monkey.retromusic.fragments.base.AbsPlayerFragment
 import code.name.monkey.retromusic.fragments.player.PlayerAlbumCoverFragment
 import code.name.monkey.retromusic.glide.BlurTransformation
 import code.name.monkey.retromusic.glide.RetroGlideExtension
-import code.name.monkey.retromusic.glide.RetroGlideExtension.artistCoverOptions
+import code.name.monkey.retromusic.glide.RetroGlideExtension.artistImageOptions
 import code.name.monkey.retromusic.glide.RetroGlideExtension.simpleSongCoverOptions
 import code.name.monkey.retromusic.glide.crossfadeListener
 import code.name.monkey.retromusic.helper.MusicPlayerRemote
@@ -145,7 +145,7 @@ class BlurPlayerFragment : AbsPlayerFragment(R.layout.fragment_blur),
             val request = if (artist != null && artist.albums.isNotEmpty()) {
                 Glide.with(this@BlurPlayerFragment)
                     .load(RetroGlideExtension.getArtistModel(artist))
-                    .artistCoverOptions(artist)
+                    .artistImageOptions(artist)
             } else {
                 Glide.with(this@BlurPlayerFragment)
                     .load(RetroGlideExtension.getSongModel(song))

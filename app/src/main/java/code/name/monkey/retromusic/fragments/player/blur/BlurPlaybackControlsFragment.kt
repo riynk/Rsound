@@ -213,8 +213,8 @@ class BlurPlaybackControlsFragment :
         }
 
         val constraints = ConstraintSet().apply { clone(defaults) }
-        val smallGap = dipToPix(4f)
-        val controlGap = dipToPix(8f)
+        val smallGap = dipToPix(4f).toInt()
+        val controlGap = dipToPix(8f).toInt()
         constraints.setVisibility(R.id.songInfo, View.GONE)
 
         constraints.clear(R.id.playPauseButton, ConstraintSet.TOP)
