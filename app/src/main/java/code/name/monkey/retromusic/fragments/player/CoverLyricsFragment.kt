@@ -197,7 +197,10 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
         ttmlDocument = null
         displayedLine = null
         displayedLineIndex = -1
+        canSwitchLyricsFormat = false
         if (_binding != null) {
+            binding.playerLyricsFormat.isClickable = false
+            binding.playerLyricsFormat.isVisible = false
             lyricsLayout.animate().cancel()
             lyricsLine1.animate().cancel()
             lyricsLine2.animate().cancel()
@@ -297,42 +300,61 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
             ColorUtils.setAlphaComponent(lyricsLine2.currentTextColor, 128)
         )
 
-        val lineChanged = displayedLine != line
-        if (lineChanged && displayedLine != null) {
-            lyricsLine1.text = withTranslation(displayedLine!!, translatedLines.getOrNull(displayedLineIndex))
-            lyricsLine1.isVisible = true
-            lyricsLine2.text = withTranslation(karaokeText ?: line, translatedLines.getOrNull(lineIndex))
-            lyricsLine2.isVisible = true
-            lyricsLine2.measure(
-                View.MeasureSpec.makeMeasureSpec(lyricsLine2.measuredWidth, View.MeasureSpec.EXACTLY),
-                View.MeasureSpec.UNSPECIFIED
-            )
-            val h = lyricsLine2.measuredHeight.toFloat()
-            lyricsLine1.alpha = 1f
-            lyricsLine1.translationY = 0f
-            lyricsLine1.animate().alpha(0f).translationY(-h).duration =
-                AbsPlayerFragment.VISIBILITY_ANIM_DURATION
-            lyricsLine2.alpha = 0f
-            lyricsLine2.translationY = h
-            lyricsLine2.animate().alpha(1f).translationY(0f).duration =
-                AbsPlayerFragment.VISIBILITY_ANIM_DURATION
-        } else {
+        val lineChanged = displayedLine != line || displayedLineIndex != lineIndex
+        if (lineChanged) {
+            // Keep the previous source line visible, but never carry its translation forward.
             if (displayedLine != null) {
-                val previousRow = withTranslation(
-                    displayedLine!!,
-                    translatedLines.getOrNull(displayedLineIndex)
-                )
-                if (lyricsLine1.text != previousRow) lyricsLine1.text = previousRow
-            }
-            lyricsLine2.text = withTranslation(karaokeText ?: line, translatedLines.getOrNull(lineIndex))
-            lyricsLine2.isVisible = true
-            if (displayedLine == null) {
+                lyricsLine1.text = displayedLine
+                lyricsLine1.isVisible = true
+            } else {
                 lyricsLine1.text = null
                 lyricsLine1.isVisible = false
             }
+            lyricsLine2.text = withTranslation(karaokeText ?: line, translatedLines.getOrNull(lineIndex))
+            lyricsLine2.isVisible = true
+            positionLyricsRows(animate = displayedLine != null)
+        } else {
+            if (displayedLine != null && lyricsLine1.text != displayedLine) {
+                lyricsLine1.text = displayedLine
+            }
+            lyricsLine2.text = withTranslation(karaokeText ?: line, translatedLines.getOrNull(lineIndex))
+            lyricsLine2.isVisible = true
+            positionLyricsRows(animate = false)
         }
         displayedLine = line
         displayedLineIndex = lineIndex
+    }
+
+    private fun positionLyricsRows(animate: Boolean) {
+        val width = (lyricsLayout.width - lyricsLayout.paddingLeft - lyricsLayout.paddingRight)
+            .takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
+        val widthSpec = View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY)
+        val heightSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        val hasPrevious = lyricsLine1.isVisible
+        if (hasPrevious) lyricsLine1.measure(widthSpec, heightSpec)
+        lyricsLine2.measure(widthSpec, heightSpec)
+
+        val gap = dipToPix(12f).toFloat()
+        val previousOffset = if (hasPrevious) -(lyricsLine1.measuredHeight / 2f + gap / 2f) else 0f
+        val currentOffset = if (hasPrevious) lyricsLine2.measuredHeight / 2f + gap / 2f else 0f
+
+        lyricsLine1.animate().cancel()
+        lyricsLine2.animate().cancel()
+        if (animate && hasPrevious) {
+            lyricsLine1.alpha = 1f
+            lyricsLine1.translationY = 0f
+            lyricsLine1.animate().alpha(0.62f).translationY(previousOffset)
+                .setDuration(AbsPlayerFragment.VISIBILITY_ANIM_DURATION).start()
+            lyricsLine2.alpha = 0f
+            lyricsLine2.translationY = currentOffset + lyricsLine2.measuredHeight
+            lyricsLine2.animate().alpha(1f).translationY(currentOffset)
+                .setDuration(AbsPlayerFragment.VISIBILITY_ANIM_DURATION).start()
+        } else {
+            lyricsLine1.alpha = if (hasPrevious) 0.62f else 0f
+            lyricsLine1.translationY = previousOffset
+            lyricsLine2.alpha = 1f
+            lyricsLine2.translationY = currentOffset
+        }
     }
 
     private fun withTranslation(source: CharSequence, translation: String?): CharSequence {
