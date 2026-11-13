@@ -101,7 +101,7 @@ public final class TtmlUtils {
         return copies;
     }
 
-    private static List<LrcEntry> parseTtmlUncached(String content) {
+    private static List<LrcEntry> parseTtmlUncached(String content, Map<String, String> metadata, String[] timingMode) {
         List<LrcEntry> entries = new ArrayList<>();
         if (!isTtml(content)) return entries;
 
@@ -120,6 +120,17 @@ public final class TtmlUtils {
 
             int event = parser.getEventType();
             while (event != XmlPullParser.END_DOCUMENT) {
+                if (event == XmlPullParser.START_TAG && "tt".equals(parser.getName())) {
+                    String mode = attribute(parser, "timing");
+                    if (!TextUtils.isEmpty(mode)) timingMode[0] = mode;
+                    String language = attribute(parser, "lang");
+                    if (!TextUtils.isEmpty(language) && !metadata.containsKey("language")) {
+                        metadata.put("language", language);
+                    }
+                }
+                if (event == XmlPullParser.START_TAG && "head".equals(parser.getName())) {
+                    parseHead(parser, metadata);
+                }
                 if (event == XmlPullParser.START_TAG && "p".equals(parser.getName())) {
                     long parsedParagraphStart = parseTime(attribute(parser, "begin"));
                     long parsedParagraphEnd = parseTime(attribute(parser, "end"));
@@ -316,9 +327,21 @@ public final class TtmlUtils {
     /** Parsed TTML document reusable by both the full lyrics page and Now Playing. */
     public static final class ParsedDocument {
         private final List<LrcEntry> entries;
+        private final Map<String, String> metadata;
+        private final String timingMode;
 
-        private ParsedDocument(List<LrcEntry> entries) {
+        private ParsedDocument(List<LrcEntry> entries, Map<String, String> metadata, String timingMode) {
             this.entries = Collections.unmodifiableList(new ArrayList<>(entries));
+            this.metadata = Collections.unmodifiableMap(new LinkedHashMap<>(metadata));
+            this.timingMode = TextUtils.isEmpty(timingMode) ? "Word" : timingMode;
+        }
+
+        public Map<String, String> getMetadata() {
+            return metadata;
+        }
+
+        public String getTimingMode() {
+            return timingMode;
         }
 
         private long findLineTime(long timeMs) {
@@ -390,13 +413,12 @@ public final class TtmlUtils {
             long previousTime = Long.MIN_VALUE;
             StringBuilder row = new StringBuilder();
             for (LrcEntry entry : entries) {
-                if (entry.isBackgroundOnly()) continue;
                 if (entry.getTime() != previousTime) {
                     if (row.length() > 0) result.add(row.toString());
                     row.setLength(0);
                     previousTime = entry.getTime();
                 } else if (row.length() > 0) row.append('\n');
-                row.append(entry.getText());
+                row.append(entry.getShowText());
             }
             if (row.length() > 0) result.add(row.toString());
             return result;
@@ -428,13 +450,18 @@ public final class TtmlUtils {
     }
 
     public static ParsedDocument parseDocument(String content) {
-        if (TextUtils.isEmpty(content)) return new ParsedDocument(new ArrayList<>());
+        if (TextUtils.isEmpty(content)) {
+            return new ParsedDocument(new ArrayList<>(), Collections.emptyMap(), "Word");
+        }
         String key = fingerprint(content);
         synchronized (CACHE) {
             ParsedDocument cached = CACHE.get(key);
             if (cached != null) return cached;
         }
-        ParsedDocument parsed = new ParsedDocument(parseTtmlUncached(content));
+        Map<String, String> metadata = new LinkedHashMap<>();
+        String[] timingMode = {"Word"};
+        List<LrcEntry> entries = parseTtmlUncached(content, metadata, timingMode);
+        ParsedDocument parsed = new ParsedDocument(entries, metadata, timingMode[0]);
         synchronized (CACHE) {
             CACHE.put(key, parsed);
         }
@@ -451,6 +478,42 @@ public final class TtmlUtils {
         } catch (Exception ignored) {
             return content.length() + ":" + content.hashCode();
         }
+    }
+
+    private static void parseHead(XmlPullParser parser, Map<String, String> metadata) throws Exception {
+        int headDepth = parser.getDepth();
+        int event;
+        while ((event = parser.next()) != XmlPullParser.END_DOCUMENT) {
+            if (event == XmlPullParser.END_TAG && parser.getDepth() == headDepth) return;
+            if (event != XmlPullParser.START_TAG) continue;
+
+            String name = parser.getName().toLowerCase(Locale.ROOT);
+            if (!("title".equals(name) || "artist".equals(name) || "album".equals(name)
+                    || "language".equals(name) || "source".equals(name) || "songwriter".equals(name))) {
+                continue;
+            }
+            String value = readElementText(parser);
+            if (TextUtils.isEmpty(value)) continue;
+            if ("songwriter".equals(name)) {
+                String previous = metadata.get("songwriters");
+                metadata.put("songwriters", TextUtils.isEmpty(previous) ? value : previous + ", " + value);
+            } else {
+                metadata.put(name, value);
+            }
+        }
+    }
+
+    private static String readElementText(XmlPullParser parser) throws Exception {
+        int depth = parser.getDepth();
+        StringBuilder value = new StringBuilder();
+        int event;
+        while ((event = parser.next()) != XmlPullParser.END_DOCUMENT) {
+            if (event == XmlPullParser.END_TAG && parser.getDepth() == depth) break;
+            if (event == XmlPullParser.TEXT || event == XmlPullParser.CDSECT) {
+                value.append(parser.getText());
+            }
+        }
+        return value.toString().trim();
     }
 
     private static LinePart buildLinePart(String source,

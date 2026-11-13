@@ -84,9 +84,8 @@ class LrcEntry implements Comparable<LrcEntry> {
         align = Layout.Alignment.ALIGN_OPPOSITE;
         break;
     }
-    staticLayout = new StaticLayout(
-        buildDisplayText(backgroundOnly ? "" : text, translationColor),
-        paint, width, align, 1f, 0f, false);
+    CharSequence displayText = backgroundOnly ? "" : buildDisplayText(text, translationColor);
+    staticLayout = new StaticLayout(displayText, paint, width, align, 1f, 0f, false);
 
     offset = Float.MIN_VALUE;
   }

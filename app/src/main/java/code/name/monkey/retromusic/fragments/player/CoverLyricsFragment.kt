@@ -338,6 +338,10 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
         val previousOffset = if (hasPrevious) -(lyricsLine1.measuredHeight / 2f + gap / 2f) else 0f
         val currentOffset = if (hasPrevious) lyricsLine2.measuredHeight / 2f + gap / 2f else 0f
 
+        lyricsLine1.scaleX = 1f
+        lyricsLine1.scaleY = 1f
+        lyricsLine2.scaleX = 1.05f
+        lyricsLine2.scaleY = 1.05f
         lyricsLine1.animate().cancel()
         lyricsLine2.animate().cancel()
         if (animate && hasPrevious) {
