@@ -17,13 +17,11 @@ package code.name.monkey.retromusic.lyrics;
 import android.text.TextUtils;
 import android.text.format.DateUtils;
 
-import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -71,7 +69,6 @@ class LrcUtils {
     }
 
     try {
-      byte[] bytes = new byte[(int) Math.min(lrcFile.length(), 4L * 1024L * 1024L)];
       try (FileInputStream input = new FileInputStream(lrcFile);
            ByteArrayOutputStream output = new ByteArrayOutputStream()) {
         byte[] buffer = new byte[8192];
