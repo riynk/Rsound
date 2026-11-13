@@ -51,8 +51,8 @@ public final class TtmlUtils {
             int event = parser.getEventType();
             while (event != XmlPullParser.END_DOCUMENT) {
                 if (event == XmlPullParser.START_TAG && "p".equals(parser.getName())) {
-                    long paragraphStart = parseTime(attribute(parser, "begin"));
-                    if (paragraphStart < 0) paragraphStart = 0L;
+                    long parsedParagraphStart = parseTime(attribute(parser, "begin"));
+                    long paragraphStart = Math.max(0L, parsedParagraphStart);
 
                     StringBuilder text = new StringBuilder();
                     List<LrcEntry.WordTiming> words = new ArrayList<>();
@@ -84,7 +84,8 @@ public final class TtmlUtils {
                             if ("span".equals(parser.getName()) && !spans.isEmpty()) {
                                 SpanFrame span = spans.pop();
                                 int spanEnd = text.length();
-                                if (span.begin >= 0 && spanEnd > span.startIndex) {
+                                if (span.begin >= 0 && !span.hasTimedChild &&
+                                    spanEnd > span.startIndex) {
                                     long wordStart = paragraphStart + span.begin;
                                     long wordEnd = span.end >= 0
                                         ? paragraphStart + span.end
@@ -128,10 +129,9 @@ public final class TtmlUtils {
                             }
                         }
 
-                        long lineStart = paragraphStart;
-                        if (!normalized.isEmpty()) {
-                            lineStart = Math.min(lineStart, normalized.get(0).start);
-                        }
+                        long lineStart = parsedParagraphStart >= 0
+                            ? paragraphStart
+                            : (!normalized.isEmpty() ? normalized.get(0).start : 0L);
                         LrcEntry entry = new LrcEntry(lineStart, line);
                         entry.setWordTimings(normalized);
                         entries.add(entry);
