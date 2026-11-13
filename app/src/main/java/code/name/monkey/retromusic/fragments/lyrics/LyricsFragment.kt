@@ -378,7 +378,7 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
 
     private fun loadNormalLyrics() {
         val file = File(song.data)
-        val lyrics = try {
+        var lyrics = try {
             AudioFileIO.read(file).tagOrCreateDefault.getFirst(FieldKey.LYRICS)
         } catch (e: Exception) {
             e.printStackTrace()
