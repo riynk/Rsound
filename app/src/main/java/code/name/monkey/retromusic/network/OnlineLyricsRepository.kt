@@ -57,8 +57,13 @@ object OnlineLyricsRepository {
             networkFailure = true
         }
 
-        val savedLrc = !lrcContent.isNullOrBlank() &&
-            LyricUtil.writeLrcToLoc(song.title, song.artistName, lrcContent.trim()) != null
+        val lrcText = lrcContent?.trim().orEmpty()
+        val hasLrcTimestamps = Regex("(?m)^\\s*\\[\\d{1,3}:\\d{2}(?:[.:]\\d{1,3})?\\]")
+            .containsMatchIn(lrcText)
+        val savedLrc = lrcText.isNotBlank() && hasLrcTimestamps &&
+            LyricUtil.writeLrcToLoc(song.title, song.artistName, lrcText) != null
+        val savedPlain = lrcText.isNotBlank() && !hasLrcTimestamps &&
+            LyricUtil.writePlainLyricsToLoc(song.title, song.artistName, lrcText) != null
 
         var savedTtml = false
         if (!ttmlContent.isNullOrBlank() && TtmlUtils.isTtml(ttmlContent)) {
@@ -70,10 +75,11 @@ object OnlineLyricsRepository {
             }
         }
 
-        if (savedTtml || savedLrc) {
+        if (savedTtml || savedLrc || savedPlain) {
             val formats = listOfNotNull(
                 if (savedTtml) "TTML" else null,
-                if (savedLrc) "LRC" else null
+                if (savedLrc) "LRC" else null,
+                if (savedPlain) "plain text" else null
             )
             return DownloadResult.Saved(formats.joinToString(" + "))
         }
