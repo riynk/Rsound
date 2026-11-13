@@ -3,15 +3,14 @@
  *
  * Licensed under the GNU General Public License v3 or later.
  */
-package code.name.monkey.retromusic.model.lyrics;
+package code.name.monkey.retromusic.lyrics;
 
 import java.util.List;
 
-import code.name.monkey.retromusic.lyrics.LrcEntry;
-import code.name.monkey.retromusic.lyrics.TtmlUtils;
+import code.name.monkey.retromusic.model.lyrics.AbsSynchronizedLyrics;
 
 /** Synchronized lyric adapter for TTML documents. */
-class SynchronizedLyricsTTML extends AbsSynchronizedLyrics {
+public class SynchronizedLyricsTTML extends AbsSynchronizedLyrics {
     @Override
     public SynchronizedLyricsTTML parse(boolean check) {
         if (parsed || data == null || data.isEmpty()) return this;
