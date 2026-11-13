@@ -16,15 +16,12 @@ package code.name.monkey.retromusic.lyrics;
 
 import android.text.Layout;
 import android.text.StaticLayout;
-import android.text.TextPaint;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.text.style.ReplacementSpan;
 import android.text.TextPaint;
 import android.text.TextUtils;
 import android.text.SpannableString;
-import android.text.style.ForegroundColorSpan;
-import android.text.style.StyleSpan;
 import android.graphics.Typeface;
 
 import java.util.ArrayList;
