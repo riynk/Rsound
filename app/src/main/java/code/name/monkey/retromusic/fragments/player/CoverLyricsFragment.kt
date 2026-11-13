@@ -3,7 +3,6 @@ package code.name.monkey.retromusic.fragments.player
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.view.View
-import android.view.Gravity
 import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.core.view.isVisible
@@ -194,12 +193,6 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
         if (oldLine != line || oldLine.isEmpty()) {
             lyricsLine1.text = oldLine
             lyricsLine2.text = karaokeText ?: line
-            lyricsLine2.gravity = if (document?.isSecondaryVoice(progress.toLong()) == true) {
-                Gravity.END or Gravity.CENTER_VERTICAL
-            } else {
-                Gravity.CENTER
-            }
-
             lyricsLine1.isVisible = true
             lyricsLine2.isVisible = true
 
