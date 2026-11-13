@@ -72,11 +72,16 @@ public final class TtmlUtils {
                             paragraphDepth++;
                             String tag = parser.getName();
                             if ("span".equals(tag)) {
+                                long relativeBegin = parseTime(attribute(parser, "begin"));
+                                long parentOffset = spans.isEmpty() ? 0L : spans.peek().timeOffset;
+                                long timeOffset = parentOffset + Math.max(0L, relativeBegin);
                                 spans.push(new SpanFrame(
                                     text.length(),
-                                    parseTime(attribute(parser, "begin")),
+                                    relativeBegin,
                                     parseTime(attribute(parser, "end")),
                                     parseTime(attribute(parser, "dur")),
+                                    parentOffset,
+                                    timeOffset,
                                     "x-bg".equals(attribute(parser, "role")) ||
                                         (!spans.isEmpty() && spans.peek().background)
                                 ));
@@ -93,9 +98,9 @@ public final class TtmlUtils {
                                 int spanEnd = text.length();
                                 if (span.begin >= 0 && !span.hasTimedChild &&
                                     spanEnd > span.startIndex) {
-                                    long wordStart = paragraphStart + span.begin;
+                                    long wordStart = paragraphStart + span.timeOffset;
                                     long wordEnd = span.end >= 0
-                                        ? paragraphStart + span.end
+                                        ? paragraphStart + span.parentOffset + span.end
                                         : (span.duration >= 0 ? wordStart + span.duration : -1L);
                                     words.add(new LrcEntry.WordTiming(
                                         wordStart, wordEnd, span.startIndex, spanEnd,
@@ -212,14 +217,19 @@ public final class TtmlUtils {
         final long begin;
         final long end;
         final long duration;
+        final long parentOffset;
+        final long timeOffset;
         final boolean background;
         boolean hasTimedChild;
 
-        SpanFrame(int startIndex, long begin, long end, long duration, boolean background) {
+        SpanFrame(int startIndex, long begin, long end, long duration,
+            long parentOffset, long timeOffset, boolean background) {
             this.startIndex = startIndex;
             this.begin = begin;
             this.end = end;
             this.duration = duration;
+            this.parentOffset = parentOffset;
+            this.timeOffset = timeOffset;
             this.background = background;
         }
     }
