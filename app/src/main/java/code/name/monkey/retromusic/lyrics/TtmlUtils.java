@@ -2,14 +2,16 @@
  * TTML lyric reader for RetroMusic.
  *
  * Supports line-synchronized TTML and Apple Music word-timed TTML by
- * projecting paragraph timestamps into the existing line-based LRC view.
- * Word-level highlighting requires a separate renderer and is not inferred
- * from paragraph timing.
+ * projecting paragraph timestamps into the existing lyric view while
+ * retaining word timing, singer identity, and background-vocal roles.
  */
 package code.name.monkey.retromusic.lyrics;
 
 import android.text.TextUtils;
 import android.text.SpannableString;
+import android.text.SpannableStringBuilder;
+import android.text.Layout;
+import android.text.style.AlignmentSpan;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.StyleSpan;
 import android.graphics.Typeface;
@@ -170,43 +172,68 @@ public final class TtmlUtils {
             this.entries = entries;
         }
 
-        private LrcEntry findLine(long timeMs) {
-            LrcEntry current = null;
+        private long findLineTime(long timeMs) {
+            long lineTime = -1L;
             for (LrcEntry entry : entries) {
                 if (entry.getTime() > timeMs) break;
-                current = entry;
+                lineTime = entry.getTime();
             }
-            return current != null ? current : (entries.isEmpty() ? null : entries.get(0));
+            return lineTime >= 0 ? lineTime : (entries.isEmpty() ? -1L : entries.get(0).getTime());
         }
 
         public CharSequence getKaraokeText(long timeMs, int activeColor, int inactiveColor) {
-            LrcEntry entry = findLine(timeMs);
-            if (entry == null) return "";
-            SpannableString result = new SpannableString(entry.getText());
-            for (LrcEntry.WordTiming word : entry.getWordTimings()) {
-                int start = Math.max(0, Math.min(word.startIndex, result.length()));
-                int end = Math.max(start, Math.min(word.endIndex, result.length()));
-                if (end <= start) continue;
-                int color = timeMs >= word.start && timeMs < word.end
-                    ? activeColor : inactiveColor;
-                result.setSpan(new ForegroundColorSpan(color), start, end,
-                    SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE);
-                if (word.background) {
-                    result.setSpan(new StyleSpan(Typeface.ITALIC), start, end,
-                        SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE);
+            long lineTime = findLineTime(timeMs);
+            if (lineTime < 0) return "";
+            SpannableStringBuilder result = new SpannableStringBuilder();
+            for (LrcEntry entry : entries) {
+                if (entry.getTime() != lineTime) continue;
+                if (result.length() > 0) result.append('\n');
+                int lineStart = result.length();
+                result.append(entry.getText());
+                int lineEnd = result.length();
+                Layout.Alignment alignment = "v2".equalsIgnoreCase(entry.getSpeaker())
+                    ? Layout.Alignment.ALIGN_OPPOSITE
+                    : ("v1".equalsIgnoreCase(entry.getSpeaker())
+                        ? Layout.Alignment.ALIGN_NORMAL : Layout.Alignment.ALIGN_CENTER);
+                result.setSpan(new AlignmentSpan.Standard(alignment), lineStart, lineEnd,
+                    SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+                for (LrcEntry.WordTiming word : entry.getWordTimings()) {
+                    int start = lineStart + Math.max(0, Math.min(word.startIndex, entry.getText().length()));
+                    int end = lineStart + Math.max(0, Math.min(word.endIndex, entry.getText().length()));
+                    if (end <= start) continue;
+                    int color = timeMs >= word.start && timeMs < word.end
+                        ? activeColor : inactiveColor;
+                    result.setSpan(new ForegroundColorSpan(color), start, end,
+                        SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    if (word.background) {
+                        result.setSpan(new StyleSpan(Typeface.ITALIC), start, end,
+                            SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    }
                 }
             }
             return result;
         }
 
         public boolean isSecondaryVoice(long timeMs) {
-            LrcEntry entry = findLine(timeMs);
-            return entry != null && "v2".equalsIgnoreCase(entry.getSpeaker());
+            long lineTime = findLineTime(timeMs);
+            for (LrcEntry entry : entries) {
+                if (entry.getTime() == lineTime && "v2".equalsIgnoreCase(entry.getSpeaker())) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public String getPlainLine(long timeMs) {
-            LrcEntry entry = findLine(timeMs);
-            return entry == null ? "" : entry.getText();
+            long lineTime = findLineTime(timeMs);
+            StringBuilder result = new StringBuilder();
+            for (LrcEntry entry : entries) {
+                if (entry.getTime() != lineTime) continue;
+                if (result.length() > 0) result.append('\n');
+                result.append(entry.getText());
+            }
+            return result.toString();
         }
     }
 
