@@ -38,7 +38,6 @@ class LrcEntry implements Comparable<LrcEntry> {
   private String secondText;
   private StaticLayout staticLayout;
   private final List<WordTiming> wordTimings = new ArrayList<>();
-  private long currentTime;
   private int textGravity = -1;
   private String speaker;
   /** 歌词距离视图顶部的距离 */
@@ -56,7 +55,6 @@ class LrcEntry implements Comparable<LrcEntry> {
   }
 
   void init(TextPaint paint, int width, int gravity) {
-    gravity = getTextGravity(gravity);
     gravity = getTextGravity(gravity);
     Layout.Alignment align;
     switch (gravity) {
@@ -108,7 +106,7 @@ class LrcEntry implements Comparable<LrcEntry> {
   void updateWordHighlight(TextPaint paint, int width, int gravity, long time,
       int activeColor, int inactiveColor) {
     if (wordTimings.isEmpty()) return;
-    currentTime = time;
+    gravity = getTextGravity(gravity);
     Layout.Alignment align;
     switch (gravity) {
       case GRAVITY_LEFT:
