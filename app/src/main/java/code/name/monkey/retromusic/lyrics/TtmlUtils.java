@@ -2,9 +2,9 @@
  * TTML lyric reader for RetroMusic.
  *
  * Supports line-synchronized TTML and Apple Music word-timed TTML by
- * projecting paragraph timestamps into the existing LRC view model.
- * Word timing is retained by the source document; the legacy LrcView
- * currently renders line-level highlighting.
+ * projecting paragraph timestamps into the existing line-based LRC view.
+ * Word-level highlighting requires a separate renderer and is not inferred
+ * from paragraph timing.
  */
 package code.name.monkey.retromusic.lyrics;
 
@@ -60,13 +60,12 @@ public final class TtmlUtils {
                         if (event == XmlPullParser.END_DOCUMENT) break;
                         if (event == XmlPullParser.START_TAG) {
                             depth++;
-                            if (start < 0) {
+                            if ("br".equals(parser.getName())) {
+                                text.append('\n');
+                            } else if (start < 0) {
                                 long nestedStart = parseTime(attribute(parser, "begin"));
                                 if (nestedStart >= 0) start = nestedStart;
                             }
-                        } else if (event == XmlPullParser.START_TAG &&
-                                "br".equals(parser.getName())) {
-                            text.append('\n');
                         } else if (event == XmlPullParser.TEXT ||
                                 event == XmlPullParser.CDSECT ||
                                 event == XmlPullParser.ENTITY_REF) {
