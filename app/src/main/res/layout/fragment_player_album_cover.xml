@@ -43,4 +43,32 @@
             app:lrcTimelineColor="@color/transparent"
             tools:visibility="visible" />
     </com.bosphere.fadingedgelayout.FadingEdgeLayout>
+
+    <ImageButton
+        android:id="@+id/playerLyricsTranslate"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_gravity="top|start"
+        android:layout_margin="12dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/translate_lyrics"
+        android:elevation="24dp"
+        android:padding="8dp"
+        android:src="@drawable/ic_language"
+        android:tint="@color/md_white_1000"
+        android:visibility="gone" />
+
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/playerLyricsFormat"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_margin="16dp"
+        android:elevation="24dp"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="4dp"
+        android:textColor="@color/md_white_1000"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
 </FrameLayout>

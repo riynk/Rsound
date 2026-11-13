@@ -21,6 +21,7 @@ import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
 import android.os.Looper;
@@ -262,6 +263,7 @@ public class LrcView extends View {
         mTimeTextWidth = (int) getResources().getDimension(R.dimen.lrc_time_width);
 
         mLrcPaint.setAntiAlias(true);
+        mLrcPaint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
         mLrcPaint.setTextSize(mCurrentTextSize);
         mLrcPaint.setTextAlign(Paint.Align.LEFT);
         mTimePaint.setAntiAlias(true);
@@ -417,6 +419,31 @@ public class LrcView extends View {
         int index = getCurrentLineGroupIndex();
         List<String> rows = getAllLineTexts();
         return index >= 0 && index < rows.size() ? rows.get(index) : "";
+    }
+
+    /** Applies translated text to each timestamp group, beneath its final voice row. */
+    public void setTranslations(List<String> translations) {
+        runOnUi(() -> {
+            int groupIndex = 0;
+            int index = 0;
+            while (index < mLrcEntryList.size()) {
+                int end = index + 1;
+                long time = mLrcEntryList.get(index).getTime();
+                while (end < mLrcEntryList.size() && mLrcEntryList.get(end).getTime() == time) end++;
+                String translation = translations != null && groupIndex < translations.size()
+                        ? translations.get(groupIndex) : null;
+                for (int row = index; row < end; row++) {
+                    mLrcEntryList.get(row).setTranslationText(row == end - 1 ? translation : null);
+                    if (getWidth() > 0) {
+                        mLrcEntryList.get(row).init(mLrcPaint, (int) getLrcWidth(), mTextGravity, mNormalTextColor);
+                    }
+                }
+                groupIndex++;
+                index = end;
+            }
+            if (mCurrentPlaybackTime >= 0L && hasLrc()) updateTime(mCurrentPlaybackTime);
+            else invalidate();
+        });
     }
 
     public boolean hasLrc() {
@@ -670,7 +697,7 @@ public class LrcView extends View {
         }
 
         for (LrcEntry lrcEntry : mLrcEntryList) {
-            lrcEntry.init(mLrcPaint, (int) getLrcWidth(), mTextGravity);
+            lrcEntry.init(mLrcPaint, (int) getLrcWidth(), mTextGravity, mNormalTextColor);
         }
 
         mOffset = getHeight() / 2F;

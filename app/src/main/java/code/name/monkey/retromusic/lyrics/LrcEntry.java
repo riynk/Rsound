@@ -22,6 +22,10 @@ import android.text.style.ReplacementSpan;
 import android.text.TextPaint;
 import android.text.TextUtils;
 import android.text.SpannableString;
+import android.text.SpannableStringBuilder;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.RelativeSizeSpan;
+import android.text.style.StyleSpan;
 import android.graphics.Typeface;
 
 import java.util.ArrayList;
@@ -37,6 +41,7 @@ class LrcEntry implements Comparable<LrcEntry> {
   private final long time;
   private final String text;
   private String secondText;
+  private String translationText;
   private StaticLayout staticLayout;
   private final List<WordTiming> wordTimings = new ArrayList<>();
   private int textGravity = -1;
@@ -56,6 +61,10 @@ class LrcEntry implements Comparable<LrcEntry> {
   }
 
   void init(TextPaint paint, int width, int gravity) {
+    init(paint, width, gravity, paint.getColor());
+  }
+
+  void init(TextPaint paint, int width, int gravity, int translationColor) {
     gravity = getTextGravity(gravity);
     Layout.Alignment align;
     switch (gravity) {
@@ -72,7 +81,7 @@ class LrcEntry implements Comparable<LrcEntry> {
         align = Layout.Alignment.ALIGN_OPPOSITE;
         break;
     }
-    staticLayout = new StaticLayout(getShowText(), paint, width, align, 1f, 0f, false);
+    staticLayout = new StaticLayout(buildDisplayText(getShowText(), translationColor), paint, width, align, 1f, 0f, false);
 
     offset = Float.MIN_VALUE;
   }
@@ -124,7 +133,7 @@ class LrcEntry implements Comparable<LrcEntry> {
         align = Layout.Alignment.ALIGN_CENTER;
         break;
     }
-    SpannableString styled = new SpannableString(getShowText());
+    SpannableStringBuilder styled = new SpannableStringBuilder(getShowText());
     for (WordTiming word : wordTimings) {
       int start = Math.max(0, Math.min(word.startIndex, styled.length()));
       int end = Math.max(start, Math.min(word.endIndex, styled.length()));
@@ -137,6 +146,7 @@ class LrcEntry implements Comparable<LrcEntry> {
             start, end, SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE);
       }
     }
+    appendTranslation(styled, inactiveColor);
     staticLayout = new StaticLayout(styled, paint, width, align, 1f, 0f, false);
   }
 
@@ -259,6 +269,32 @@ class LrcEntry implements Comparable<LrcEntry> {
 
   void setSecondText(String secondText) {
     this.secondText = secondText;
+  }
+
+  void setTranslationText(String translationText) {
+    this.translationText = translationText;
+  }
+
+  private CharSequence buildDisplayText(CharSequence source, int translationColor) {
+    SpannableStringBuilder styled = new SpannableStringBuilder(source);
+    appendTranslation(styled, translationColor);
+    return styled;
+  }
+
+  private void appendTranslation(SpannableStringBuilder styled, int translationColor) {
+    if (TextUtils.isEmpty(translationText)) return;
+    styled.append('\n');
+    int start = styled.length();
+    styled.append(translationText);
+    int end = styled.length();
+    styled.setSpan(new RelativeSizeSpan(0.78f), start, end,
+        SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE);
+    styled.setSpan(new StyleSpan(Typeface.BOLD_ITALIC), start, end,
+        SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE);
+    int alpha = Math.min(220, Math.max(150, (translationColor >>> 24) & 0xFF));
+    int color = (translationColor & 0x00FFFFFF) | (alpha << 24);
+    styled.setSpan(new ForegroundColorSpan(color), start, end,
+        SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE);
   }
 
   String getSecondText() {

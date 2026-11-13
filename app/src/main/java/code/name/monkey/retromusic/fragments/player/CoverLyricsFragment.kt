@@ -3,6 +3,12 @@ package code.name.monkey.retromusic.fragments.player
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.view.View
+import android.graphics.Color
+import android.graphics.Typeface
+import android.text.SpannableStringBuilder
+import android.text.style.ForegroundColorSpan
+import android.text.style.RelativeSizeSpan
+import android.text.style.StyleSpan
 import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.core.view.isVisible
@@ -53,6 +59,8 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
     private var translationTarget = "id"
     private var translatedLines: List<String> = emptyList()
     private var translationJob: Job? = null
+    private var displayedLine: String? = null
+    private var displayedLineIndex: Int = -1
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -74,6 +82,8 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
                 prepareTranslations()
             }
         }
+        binding.playerLyricsLine1.typeface = Typeface.create(binding.playerLyricsLine1.typeface, Typeface.BOLD)
+        binding.playerLyricsLine2.typeface = Typeface.create(binding.playerLyricsLine2.typeface, Typeface.BOLD)
         binding.playerLyricsLine2.setOnClickListener {
             goToLyrics(requireActivity())
         }
@@ -92,12 +102,11 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
     fun setColors(color: MediaNotificationProcessor) {
         binding.run {
             playerLyrics.background = null
-            playerLyricsLine1.setTextColor(color.primaryTextColor)
-            playerLyricsLine1.setShadowLayer(dipToPix(10f), 0f, 0f, color.backgroundColor)
-            playerLyricsLine2.setTextColor(color.primaryTextColor)
-            playerLyricsLine2.setShadowLayer(dipToPix(10f), 0f, 0f, color.backgroundColor)
-            playerLyricsFormat.setTextColor(color.primaryTextColor)
-            playerLyricsTranslated.setTextColor(color.primaryTextColor)
+            playerLyricsLine1.setTextColor(Color.WHITE)
+            playerLyricsLine1.setShadowLayer(dipToPix(10f), 0f, 0f, Color.BLACK)
+            playerLyricsLine2.setTextColor(Color.WHITE)
+            playerLyricsLine2.setShadowLayer(dipToPix(10f), 0f, 0f, Color.BLACK)
+            playerLyricsFormat.setTextColor(Color.WHITE)
         }
 
     }
@@ -118,6 +127,8 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
 
     override fun onPlayingMetaChanged() {
         super.onPlayingMetaChanged()
+        displayedLine = null
+        displayedLineIndex = -1
         useTtmlLyrics = false
         clearTranslation()
         if (PreferenceUtil.showLyrics) {
@@ -209,43 +220,55 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
         lyricsLayout.alpha = 1f
 
         val document = ttmlDocument
-        val oldLine = lyricsLine2.text.toString()
         val line = document?.getPlainLine(progress.toLong()) ?: synchronizedLyrics.getLine(progress)
         val lineIndex = document?.getLineIndex(progress.toLong()) ?: synchronizedLyrics.getLineIndex(progress)
-        updateTranslatedLine(lineIndex)
         val karaokeText = document?.getKaraokeText(
             progress.toLong(),
             lyricsLine2.currentTextColor,
             ColorUtils.setAlphaComponent(lyricsLine2.currentTextColor, 128)
         )
 
-        if (oldLine != line || oldLine.isEmpty()) {
-            lyricsLine1.text = oldLine
-            lyricsLine2.text = karaokeText ?: line
+        val lineChanged = displayedLine != line
+        if (lineChanged && displayedLine != null) {
+            lyricsLine1.text = withTranslation(displayedLine!!, translatedLines.getOrNull(displayedLineIndex))
             lyricsLine1.isVisible = true
+            lyricsLine2.text = withTranslation(karaokeText ?: line, translatedLines.getOrNull(lineIndex))
             lyricsLine2.isVisible = true
-
             lyricsLine2.measure(
-                View.MeasureSpec.makeMeasureSpec(
-                    lyricsLine2.measuredWidth,
-                    View.MeasureSpec.EXACTLY
-                ),
+                View.MeasureSpec.makeMeasureSpec(lyricsLine2.measuredWidth, View.MeasureSpec.EXACTLY),
                 View.MeasureSpec.UNSPECIFIED
             )
-            val h: Float = lyricsLine2.measuredHeight.toFloat()
-
+            val h = lyricsLine2.measuredHeight.toFloat()
             lyricsLine1.alpha = 1f
             lyricsLine1.translationY = 0f
             lyricsLine1.animate().alpha(0f).translationY(-h).duration =
                 AbsPlayerFragment.VISIBILITY_ANIM_DURATION
-
             lyricsLine2.alpha = 0f
             lyricsLine2.translationY = h
             lyricsLine2.animate().alpha(1f).translationY(0f).duration =
                 AbsPlayerFragment.VISIBILITY_ANIM_DURATION
-        } else if (karaokeText != null) {
-            // Reapply timed spans on every progress tick without restarting line animation.
-            lyricsLine2.text = karaokeText
+        } else {
+            lyricsLine2.text = withTranslation(karaokeText ?: line, translatedLines.getOrNull(lineIndex))
+            lyricsLine2.isVisible = true
+            if (displayedLine == null) {
+                lyricsLine1.text = null
+                lyricsLine1.isVisible = false
+            }
+        }
+        displayedLine = line
+        displayedLineIndex = lineIndex
+    }
+
+    private fun withTranslation(source: CharSequence, translation: String?): CharSequence {
+        if (translation.isNullOrBlank()) return source
+        return SpannableStringBuilder(source).apply {
+            append('\n')
+            val start = length
+            append(translation)
+            setSpan(RelativeSizeSpan(0.78f), start, length, SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE)
+            setSpan(StyleSpan(Typeface.BOLD_ITALIC), start, length, SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE)
+            setSpan(ForegroundColorSpan(ColorUtils.setAlphaComponent(Color.WHITE, 210)), start, length,
+                SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
     }
 
@@ -257,14 +280,10 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
         translatedLines = emptyList()
         if (!translationEnabled || rows.isEmpty() || _binding == null) {
             if (_binding != null) {
-                binding.playerLyricsTranslated.text = null
-                binding.playerLyricsTranslated.isVisible = false
-            }
+                                            }
             return
         }
-        binding.playerLyricsTranslated.text = getString(R.string.translation_loading)
-        binding.playerLyricsTranslated.isVisible = true
-        val requestedSong = MusicPlayerRemote.currentSong
+                        val requestedSong = MusicPlayerRemote.currentSong
         val source = translationSource
         val target = translationTarget
         translationJob = lifecycleScope.launch {
@@ -275,17 +294,10 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
                 !translationEnabled || source != translationSource || target != translationTarget) return@launch
             translationJob = null
             translatedLines = result.getOrElse {
-                binding.playerLyricsTranslated.text = getString(R.string.translation_failed)
-                return@launch
+                                return@launch
             }
             onUpdateProgressViews(MusicPlayerRemote.position, MusicPlayerRemote.songDurationMillis)
         }
-    }
-
-    private fun updateTranslatedLine(index: Int) {
-        if (!translationEnabled || index < 0 || index >= translatedLines.size || _binding == null) return
-        binding.playerLyricsTranslated.text = translatedLines[index]
-        binding.playerLyricsTranslated.isVisible = translatedLines[index].isNotBlank()
     }
 
     private fun clearTranslation() {
@@ -293,9 +305,7 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
         translationJob = null
         translatedLines = emptyList()
         if (_binding != null) {
-            binding.playerLyricsTranslated.text = null
-            binding.playerLyricsTranslated.isVisible = false
-        }
+                                }
     }
 
     private fun isLyricsLayoutVisible(): Boolean {

@@ -18,6 +18,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.os.Looper
 import android.text.Layout
@@ -72,6 +73,9 @@ class CoverLrcView @JvmOverloads constructor(
     private var mScroller: Scroller? = null
     private var mOffset = 0f
     private var mCurrentLine = 0
+    private var mCurrentPlaybackTime = 0L
+    private var mWordHighlightTime = -1L
+    private var onLrcLoadedListener: (() -> Unit)? = null
     private var isShowTimeline = false
     private var isTouching = false
     private var isFling = false
@@ -236,6 +240,7 @@ class CoverLrcView @JvmOverloads constructor(
         mDrawableWidth = resources.getDimension(R.dimen.lrc_drawable_width).toInt()
         mTimeTextWidth = resources.getDimension(R.dimen.lrc_time_width).toInt()
         mLrcPaint.isAntiAlias = true
+        mLrcPaint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         mLrcPaint.textSize = mCurrentTextSize
         mLrcPaint.textAlign = Paint.Align.LEFT
         mTimePaint.isAntiAlias = true
@@ -314,6 +319,46 @@ class CoverLrcView @JvmOverloads constructor(
         }
     }
 
+    fun setOnLrcLoadedListener(listener: (() -> Unit)?) {
+        onLrcLoadedListener = listener
+    }
+
+    fun getAllLineTexts(): List<String> {
+        val result = mutableListOf<String>()
+        var previousTime = Long.MIN_VALUE
+        val row = StringBuilder()
+        for (entry in mLrcEntryList) {
+            if (entry.time != previousTime) {
+                if (row.isNotEmpty()) result.add(row.toString())
+                row.setLength(0)
+                previousTime = entry.time
+            } else if (row.isNotEmpty()) row.append('\n')
+            row.append(entry.showText)
+        }
+        if (row.isNotEmpty()) result.add(row.toString())
+        return result
+    }
+
+    fun setTranslations(translations: List<String>) {
+        runOnUi {
+            var groupIndex = 0
+            var index = 0
+            while (index < mLrcEntryList.size) {
+                var end = index + 1
+                val time = mLrcEntryList[index].time
+                while (end < mLrcEntryList.size && mLrcEntryList[end].time == time) end++
+                val translation = translations.getOrNull(groupIndex)
+                for (row in index until end) {
+                    mLrcEntryList[row].setTranslationText(if (row == end - 1) translation else null)
+                    if (width > 0) mLrcEntryList[row].init(mLrcPaint, lrcWidth.toInt(), mTextGravity, mNormalTextColor)
+                }
+                groupIndex++
+                index = end
+            }
+            if (hasLrc()) updateTime(mCurrentPlaybackTime) else invalidate()
+        }
+    }
+
     fun hasLrc(): Boolean {
         return mLrcEntryList.isNotEmpty()
     }
@@ -323,8 +368,18 @@ class CoverLrcView @JvmOverloads constructor(
             if (!hasLrc()) {
                 return@runOnUi
             }
-            val line = findShowLine(time + 300L)
+            mCurrentPlaybackTime = time
+            val line = findShowLine(time)
             if (line != mCurrentLine) {
+                val previousTime = mLrcEntryList[mCurrentLine].time
+                if (mWordHighlightTime >= 0L) {
+                    for (entry in mLrcEntryList) {
+                        if (entry.time == previousTime && entry.hasWordTimings()) {
+                            entry.updateWordHighlight(mLrcPaint, lrcWidth.toInt(), mTextGravity, time,
+                                mCurrentTextColor, mNormalTextColor)
+                        }
+                    }
+                }
                 mCurrentLine = line
                 if (!isShowTimeline) {
                     smoothScrollTo(line)
@@ -333,6 +388,16 @@ class CoverLrcView @JvmOverloads constructor(
                     invalidate()
                 }
             }
+            val activeTime = mLrcEntryList[line].time
+            var hasTimedWords = false
+            for (entry in mLrcEntryList) {
+                if (entry.time == activeTime && entry.hasWordTimings()) {
+                    entry.updateWordHighlight(mLrcPaint, lrcWidth.toInt(), mTextGravity, time,
+                        mCurrentTextColor, mNormalTextColor)
+                    hasTimedWords = true
+                }
+            }
+            mWordHighlightTime = if (hasTimedWords) activeTime else -1L
         }
     }
 
@@ -455,6 +520,7 @@ class CoverLrcView @JvmOverloads constructor(
         mLrcEntryList.sort()
         initEntryList()
         invalidate()
+        onLrcLoadedListener?.invoke()
     }
 
     private fun initPlayDrawable() {
@@ -470,7 +536,7 @@ class CoverLrcView @JvmOverloads constructor(
             return
         }
         for (lrcEntry in mLrcEntryList) {
-            lrcEntry.init(mLrcPaint, lrcWidth.toInt(), mTextGravity)
+            lrcEntry.init(mLrcPaint, lrcWidth.toInt(), mTextGravity, mNormalTextColor)
         }
         mOffset = (height / 2).toFloat()
     }
@@ -485,6 +551,8 @@ class CoverLrcView @JvmOverloads constructor(
         mLrcEntryList.clear()
         mOffset = 0f
         mCurrentLine = 0
+        mCurrentPlaybackTime = 0L
+        mWordHighlightTime = -1L
         invalidate()
     }
 

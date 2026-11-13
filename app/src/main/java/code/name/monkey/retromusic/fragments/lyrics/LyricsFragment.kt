@@ -148,10 +148,11 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
 
     private fun setupLyricsView() {
         binding.lyricsView.apply {
-            setCurrentColor(accentColor())
-            setTimeTextColor(accentColor())
-            setTimelineColor(accentColor())
-            setTimelineTextColor(accentColor())
+            setCurrentColor(Color.WHITE)
+            setNormalColor(Color.LTGRAY)
+            setTimeTextColor(Color.WHITE)
+            setTimelineColor(Color.WHITE)
+            setTimelineTextColor(Color.WHITE)
             setDraggable(true, LrcView.OnPlayClickListener {
                 MusicPlayerRemote.seekTo(it.toInt())
                 return@OnPlayClickListener true
@@ -164,7 +165,6 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
         if (translationEnabled && translatedLines.isEmpty() && translationJob == null && binding.lyricsView.hasLrc()) {
             prepareTranslations()
         }
-        updateTranslatedLine(binding.lyricsView.currentLineGroupIndex)
     }
 
     private fun openTranslationSettings() {
@@ -186,8 +186,7 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
             binding.translatedLyrics.isVisible = false
             return
         }
-        binding.translatedLyrics.text = getString(R.string.translation_loading)
-        binding.translatedLyrics.isVisible = true
+        binding.translatedLyrics.isVisible = false
         val requestedSong = song
         val source = translationSource
         val target = translationTarget
@@ -199,17 +198,11 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
                 !translationEnabled || source != translationSource || target != translationTarget) return@launch
             translationJob = null
             translatedLines = result.getOrElse {
-                binding.translatedLyrics.text = getString(R.string.translation_failed)
+                Toast.makeText(requireContext(), R.string.translation_failed, Toast.LENGTH_SHORT).show()
                 return@launch
             }
-            updateTranslatedLine(binding.lyricsView.currentLineGroupIndex)
+            binding.lyricsView.setTranslations(translatedLines)
         }
-    }
-
-    private fun updateTranslatedLine(index: Int) {
-        if (!translationEnabled || index < 0 || index >= translatedLines.size) return
-        binding.translatedLyrics.text = translatedLines[index]
-        binding.translatedLyrics.isVisible = translatedLines[index].isNotBlank()
     }
 
     private fun clearTranslation() {
@@ -218,6 +211,7 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
         translatedLines = emptyList()
         binding.translatedLyrics.text = null
         binding.translatedLyrics.isVisible = false
+        if (_binding != null) binding.lyricsView.setTranslations(emptyList())
     }
 
     private fun setupViews() {
@@ -598,6 +592,8 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
         lastBackgroundRequest = null
         if (MusicPlayerRemote.playingQueue.isNotEmpty())
             mainActivity.expandPanel()
+        translationJob?.cancel()
+        translationJob = null
         _binding = null
     }
 
