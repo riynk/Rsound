@@ -71,6 +71,7 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
     private lateinit var syncedFileUri: Uri
 
     private var lyricsType: LyricsType = LyricsType.NORMAL_LYRICS
+    private var useTtmlLyrics = false
 
     private val googleSearchLrcUrl: String
         get() {
@@ -152,12 +153,14 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
 
     override fun onPlayingMetaChanged() {
         super.onPlayingMetaChanged()
+        useTtmlLyrics = false
         updateTitleSong()
         loadLyrics()
     }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        useTtmlLyrics = false
         updateTitleSong()
         loadLyrics()
     }
@@ -180,6 +183,7 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
 
     override fun onCreateMenu(menu: Menu, inflater: MenuInflater) {
         inflater.inflate(R.menu.menu_lyrics, menu)
+        updateLyricsFormatAction()
         ToolbarContentTintHelper.handleOnCreateOptionsMenu(
             requireContext(),
             binding.toolbar,
@@ -189,10 +193,18 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
     }
 
     override fun onMenuItemSelected(item: MenuItem): Boolean {
-        if (item.itemId == R.id.action_search) {
-            openUrl(googleSearchLrcUrl)
+        return when (item.itemId) {
+            R.id.action_search -> {
+                openUrl(googleSearchLrcUrl)
+                true
+            }
+            R.id.action_lyrics_format -> {
+                useTtmlLyrics = !useTtmlLyrics
+                loadLRCLyrics()
+                true
+            }
+            else -> false
         }
-        return false
     }
 
     @SuppressLint("CheckResult")
@@ -320,10 +332,30 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
     /**
      * @return success
      */
+    private fun updateLyricsFormatAction() {
+        val item = binding.toolbar.menu.findItem(R.id.action_lyrics_format) ?: return
+        val hasLrc = LyricUtil.getLrcLyricsFile(song) != null
+        val hasTtml = LyricUtil.getTtmlLyricsFile(song) != null
+        item.isVisible = hasLrc && hasTtml
+        item.title = getString(
+            if (useTtmlLyrics) R.string.switch_to_lrc else R.string.switch_to_ttml
+        )
+        item.setIcon(if (useTtmlLyrics) R.drawable.ic_lyrics else R.drawable.ic_ttml)
+    }
+
     private fun loadLRCLyrics(): Boolean {
-        val lrcFile = LyricUtil.getSyncedLyricsFile(song)
-        if (lrcFile != null) {
-            binding.lyricsView.loadLrc(lrcFile)
+        val lrcFile = LyricUtil.getLrcLyricsFile(song)
+        val ttmlFile = LyricUtil.getTtmlLyricsFile(song)
+        val selectedFile = when {
+            lrcFile != null && ttmlFile != null ->
+                if (useTtmlLyrics) ttmlFile else lrcFile
+            lrcFile != null -> lrcFile
+            else -> ttmlFile
+        }
+
+        updateLyricsFormatAction()
+        if (selectedFile != null) {
+            binding.lyricsView.loadLrc(selectedFile)
         } else {
             val embeddedLyrics = LyricUtil.getEmbeddedSyncedLyrics(song.data)
             if (embeddedLyrics != null) {
