@@ -391,6 +391,11 @@ public class LrcView extends View {
                     int line = findShowLine(time);
                     if (line != mCurrentLine) {
                         mCurrentLine = line;
+                        if (mLrcEntryList.get(line).hasWordTimings()) {
+                            animateTtmlLineFocus();
+                        } else {
+                            mCurrentLineScale = 1f;
+                        }
                         if (!isShowTimeline) {
                             smoothScrollTo(line);
                         }
@@ -476,7 +481,26 @@ public class LrcView extends View {
                 mLrcPaint.setTextSize(mNormalTextSize);
                 mLrcPaint.setColor(mNormalTextColor);
             }
-            drawText(canvas, mLrcEntryList.get(i).getStaticLayout(), y);
+            StaticLayout layout = mLrcEntryList.get(i).getStaticLayout();
+            boolean ttmlMode = mLrcEntryList.get(mCurrentLine).hasWordTimings();
+            if (ttmlMode) {
+                int distance = Math.abs(i - mCurrentLine);
+                int alpha = distance == 0 ? 255 : (distance == 1 ? 191 : (distance == 2 ? 128 : 71));
+                int layer = canvas.saveLayerAlpha(
+                        0, y - (layout.getHeight() / 2f), getWidth(),
+                        y + (layout.getHeight() / 2f), alpha);
+                if (i == mCurrentLine) {
+                    canvas.save();
+                    canvas.scale(mCurrentLineScale, mCurrentLineScale, getWidth() / 2f, y);
+                    drawText(canvas, layout, y);
+                    canvas.restore();
+                } else {
+                    drawText(canvas, layout, y);
+                }
+                canvas.restoreToCount(layer);
+            } else {
+                drawText(canvas, layout, y);
+            }
         }
     }
 
@@ -561,7 +585,22 @@ public class LrcView extends View {
         mLrcEntryList.clear();
         mOffset = 0;
         mCurrentLine = 0;
+        mCurrentLineScale = 1f;
+        if (mLineScaleAnimator != null) mLineScaleAnimator.cancel();
         mWordHighlightTime = -1L;
+    }
+
+    private void animateTtmlLineFocus() {
+        if (mLineScaleAnimator != null) mLineScaleAnimator.cancel();
+        mCurrentLineScale = 1f;
+        mLineScaleAnimator = ValueAnimator.ofFloat(1f, 1.05f);
+        mLineScaleAnimator.setDuration(220L);
+        mLineScaleAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
+        mLineScaleAnimator.addUpdateListener(animation -> {
+            mCurrentLineScale = (float) animation.getAnimatedValue();
+            invalidate();
+        });
+        mLineScaleAnimator.start();
     }
 
     private void smoothScrollTo(int line) {
