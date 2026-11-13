@@ -46,7 +46,8 @@ public final class TtmlUtils {
             XmlPullParserFactory factory = XmlPullParserFactory.newInstance();
             factory.setNamespaceAware(true);
             XmlPullParser parser = factory.newPullParser();
-            String xml = content.startsWith("\uFEFF") ? content.substring(1) : content;
+            String xml = content.trim();
+            if (xml.startsWith("\uFEFF")) xml = xml.substring(1).trim();
             try {
                 parser.setFeature(XmlPullParser.FEATURE_PROCESS_DOCDECL, false);
             } catch (Exception ignored) {
