@@ -8,11 +8,24 @@
     android:fitsSystemWindows="true"
     android:paddingBottom="@dimen/mini_player_height">
 
+    <androidx.appcompat.widget.AppCompatImageView
+        android:id="@+id/lyricsBackground"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:contentDescription="@null" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/shadow_blur_theme" />
+
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:padding="0dp"
+        android:background="@android:color/transparent"
         app:contentInsetLeft="0dp"
         app:contentInsetStart="0dp"
         app:contentInsetStartWithNavigation="0dp"
@@ -26,7 +39,7 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="?attr/colorSurface"
+            android:background="@android:color/transparent"
             android:gravity="start"
             app:contentInsetLeft="0dp"
             app:contentInsetStart="0dp"

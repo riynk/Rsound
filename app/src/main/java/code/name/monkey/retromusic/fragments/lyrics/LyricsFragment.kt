@@ -16,6 +16,10 @@ package code.name.monkey.retromusic.fragments.lyrics
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.SharedPreferences
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
@@ -26,12 +30,14 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.isVisible
+import androidx.preference.PreferenceManager
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.transition.Fade
 import code.name.monkey.appthemehelper.common.ATHToolbarActivity
 import code.name.monkey.appthemehelper.util.ToolbarContentTintHelper
 import code.name.monkey.appthemehelper.util.VersionUtils
+import code.name.monkey.retromusic.NEW_BLUR_AMOUNT
 import code.name.monkey.retromusic.R
 import code.name.monkey.retromusic.activities.tageditor.TagWriter
 import code.name.monkey.retromusic.databinding.FragmentLyricsBinding
@@ -40,6 +46,10 @@ import code.name.monkey.retromusic.extensions.materialDialog
 import code.name.monkey.retromusic.extensions.openUrl
 import code.name.monkey.retromusic.extensions.uri
 import code.name.monkey.retromusic.fragments.base.AbsMainActivityFragment
+import code.name.monkey.retromusic.glide.BlurTransformation
+import code.name.monkey.retromusic.glide.RetroGlideExtension
+import code.name.monkey.retromusic.glide.RetroGlideExtension.simpleSongCoverOptions
+import code.name.monkey.retromusic.glide.crossfadeListener
 import code.name.monkey.retromusic.helper.MusicPlayerRemote
 import code.name.monkey.retromusic.helper.MusicProgressViewUpdateHelper
 import code.name.monkey.retromusic.lyrics.LrcView
@@ -50,6 +60,9 @@ import code.name.monkey.retromusic.network.OnlineLyricsRepository
 import code.name.monkey.retromusic.util.FileUtils
 import code.name.monkey.retromusic.util.LyricUtil
 import code.name.monkey.retromusic.util.UriUtil
+import code.name.monkey.retromusic.util.PreferenceUtil.blurAmount
+import com.bumptech.glide.Glide
+import com.bumptech.glide.RequestBuilder
 import com.afollestad.materialdialogs.input.input
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
@@ -63,7 +76,7 @@ import java.util.*
 import kotlin.collections.set
 
 class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
-    MusicProgressViewUpdateHelper.Callback {
+    MusicProgressViewUpdateHelper.Callback, SharedPreferences.OnSharedPreferenceChangeListener {
 
     private var _binding: FragmentLyricsBinding? = null
     private val binding get() = _binding!!
@@ -83,6 +96,7 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
     private var translationTarget = "id"
     private var translatedLines: List<String> = emptyList()
     private var translationJob: Job? = null
+    private var lastBackgroundRequest: RequestBuilder<Drawable>? = null
 
     private val googleSearchLrcUrl: String
         get() {
@@ -129,6 +143,7 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
         setupWakelock()
         setupViews()
         setupToolbar()
+        updateLyricsBackground()
     }
 
     private fun setupLyricsView() {
@@ -224,6 +239,7 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
         useTtmlLyrics = false
         clearTranslation()
         updateTitleSong()
+        updateLyricsBackground()
         loadLyrics()
     }
 
@@ -232,6 +248,7 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
         useTtmlLyrics = false
         clearTranslation()
         updateTitleSong()
+        updateLyricsBackground()
         loadLyrics()
     }
 
@@ -244,6 +261,31 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
         ToolbarContentTintHelper.colorBackButton(binding.toolbar)
         binding.toolbar.setNavigationOnClickListener {
             findNavController().navigateUp()
+        }
+    }
+
+
+    private fun updateLyricsBackground() {
+        val currentSong = MusicPlayerRemote.currentSong
+        Glide.with(this)
+            .load(RetroGlideExtension.getSongModel(currentSong))
+            .simpleSongCoverOptions(currentSong)
+            .transform(
+                BlurTransformation.Builder(requireContext())
+                    .blurRadius(blurAmount.toFloat())
+                    .build()
+            )
+            .thumbnail(lastBackgroundRequest)
+            .error(Glide.with(this).load(ColorDrawable(Color.DKGRAY)).fitCenter())
+            .also {
+                lastBackgroundRequest = it.clone()
+                it.crossfadeListener().into(binding.lyricsBackground)
+            }
+    }
+
+    override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
+        if (key == NEW_BLUR_AMOUNT && _binding != null) {
+            updateLyricsBackground()
         }
     }
 
@@ -537,16 +579,23 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
 
     override fun onResume() {
         super.onResume()
+        PreferenceManager.getDefaultSharedPreferences(requireContext())
+            .registerOnSharedPreferenceChangeListener(this)
         updateHelper.start()
+        if (_binding != null) updateLyricsBackground()
     }
 
     override fun onPause() {
         super.onPause()
         updateHelper.stop()
+        lastBackgroundRequest = null
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
+        PreferenceManager.getDefaultSharedPreferences(requireContext())
+            .unregisterOnSharedPreferenceChangeListener(this)
+        lastBackgroundRequest = null
         if (MusicPlayerRemote.playingQueue.isNotEmpty())
             mainActivity.expandPanel()
         _binding = null
