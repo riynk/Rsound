@@ -384,6 +384,11 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
             e.printStackTrace()
             ""
         }
+        if (lyrics.isNullOrBlank()) {
+            lyrics = LyricUtil.getPlainLyricsFile(song)?.let { file ->
+                runCatching { file.readText(Charsets.UTF_8) }.getOrNull()
+            }.orEmpty()
+        }
         binding.normalLyrics.isVisible = !lyrics.isNullOrEmpty()
         binding.noLyricsFound.isVisible = lyrics.isNullOrEmpty()
         binding.normalLyrics.text = lyrics
@@ -415,6 +420,15 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
 
         updateLyricsFormatAction()
         if (selectedFile != null) {
+            if (selectedFile.extension.equals("lrc", ignoreCase = true)) {
+                val content = LyricUtil.getStringFromLrc(selectedFile)
+                val hasTimestamps = Regex("(?m)^\\s*\\[\\d{1,3}:\\d{2}(?:[.:]\\d{1,3})?\\]")
+                    .containsMatchIn(content)
+                if (!hasTimestamps) {
+                    binding.lyricsView.setLabel(getString(R.string.empty))
+                    return false
+                }
+            }
             binding.lyricsView.loadLrc(selectedFile)
         } else {
             val embeddedLyrics = LyricUtil.getEmbeddedSyncedLyrics(song.data)
