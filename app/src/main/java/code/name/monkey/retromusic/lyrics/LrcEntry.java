@@ -17,6 +17,10 @@ package code.name.monkey.retromusic.lyrics;
 import android.text.Layout;
 import android.text.StaticLayout;
 import android.text.TextPaint;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.text.style.ReplacementSpan;
+import android.text.TextPaint;
 import android.text.TextUtils;
 import android.text.SpannableString;
 import android.text.style.ForegroundColorSpan;
@@ -125,21 +129,65 @@ class LrcEntry implements Comparable<LrcEntry> {
     }
     SpannableString styled = new SpannableString(getShowText());
     for (WordTiming word : wordTimings) {
-      // Karaoke progress is cumulative: once a syllable has been sung it stays filled,
-      // matching the progressive syllable renderer used by Localplayer.
-      int color = time >= word.start ? activeColor : inactiveColor;
       int start = Math.max(0, Math.min(word.startIndex, styled.length()));
       int end = Math.max(start, Math.min(word.endIndex, styled.length()));
       if (end > start) {
-        styled.setSpan(new ForegroundColorSpan(color), start, end,
-            SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE);
-        if (word.background) {
-          styled.setSpan(new StyleSpan(Typeface.ITALIC), start, end,
-              SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE);
-        }
+        long duration = Math.max(1L, word.end - word.start);
+        float progress = Math.max(0f, Math.min(1f, (time - word.start) / (float) duration));
+        if (word.sustained && time >= word.end) progress = 1f;
+        styled.setSpan(new ProgressiveFillSpan(
+                activeColor, inactiveColor, progress, word.background),
+            start, end, SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE);
       }
     }
     staticLayout = new StaticLayout(styled, paint, width, align, 1f, 0f, false);
+  }
+
+  /**
+   * Draws each timed TTML syllable with a left-to-right karaoke fill, rather than
+   * switching the whole word on at its start timestamp.
+   */
+  private static final class ProgressiveFillSpan extends ReplacementSpan {
+    private final int activeColor;
+    private final int inactiveColor;
+    private final float progress;
+    private final boolean background;
+
+    ProgressiveFillSpan(int activeColor, int inactiveColor, float progress, boolean background) {
+      this.activeColor = activeColor;
+      this.inactiveColor = inactiveColor;
+      this.progress = Math.max(0f, Math.min(1f, progress));
+      this.background = background;
+    }
+
+    @Override
+    public int getSize(Paint paint, CharSequence text, int start, int end,
+        Paint.FontMetricsInt fm) {
+      String value = text.subSequence(start, end).toString();
+      return Math.round(paint.measureText(value));
+    }
+
+    @Override
+    public void draw(Canvas canvas, CharSequence text, int start, int end,
+        float x, int top, int y, int bottom, Paint paint) {
+      String value = text.subSequence(start, end).toString();
+      TextPaint drawPaint = new TextPaint(paint);
+      if (background) {
+        drawPaint.setTypeface(Typeface.create(drawPaint.getTypeface(), Typeface.ITALIC));
+      }
+      float width = drawPaint.measureText(value);
+      int save = canvas.save();
+      drawPaint.setColor(inactiveColor);
+      canvas.drawText(value, x, y, drawPaint);
+      if (progress > 0f) {
+        canvas.clipRect(x, top, x + width * progress, bottom);
+        drawPaint.setColor(background
+            ? (activeColor & 0x00FFFFFF) | ((Math.round(((activeColor >>> 24) & 0xFF) * 0.6f)) << 24)
+            : activeColor);
+        canvas.drawText(value, x, y, drawPaint);
+      }
+      canvas.restoreToCount(save);
+    }
   }
 
   static final class WordTiming {
