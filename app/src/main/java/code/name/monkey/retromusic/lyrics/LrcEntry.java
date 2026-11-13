@@ -125,7 +125,9 @@ class LrcEntry implements Comparable<LrcEntry> {
     }
     SpannableString styled = new SpannableString(getShowText());
     for (WordTiming word : wordTimings) {
-      int color = time >= word.start && time < word.end ? activeColor : inactiveColor;
+      // Karaoke progress is cumulative: once a syllable has been sung it stays filled,
+      // matching the progressive syllable renderer used by Localplayer.
+      int color = time >= word.start ? activeColor : inactiveColor;
       int start = Math.max(0, Math.min(word.startIndex, styled.length()));
       int end = Math.max(start, Math.min(word.endIndex, styled.length()));
       if (end > start) {
@@ -146,17 +148,26 @@ class LrcEntry implements Comparable<LrcEntry> {
     final int startIndex;
     final int endIndex;
     final boolean background;
+    final boolean continuesWord;
+    boolean sustained;
 
     WordTiming(long start, long end, int startIndex, int endIndex) {
-      this(start, end, startIndex, endIndex, false);
+      this(start, end, startIndex, endIndex, false, false, false);
     }
 
     WordTiming(long start, long end, int startIndex, int endIndex, boolean background) {
+      this(start, end, startIndex, endIndex, background, false, false);
+    }
+
+    WordTiming(long start, long end, int startIndex, int endIndex,
+        boolean background, boolean continuesWord, boolean sustained) {
       this.start = start;
       this.end = end;
       this.startIndex = startIndex;
       this.endIndex = endIndex;
       this.background = background;
+      this.continuesWord = continuesWord;
+      this.sustained = sustained;
     }
   }
 
