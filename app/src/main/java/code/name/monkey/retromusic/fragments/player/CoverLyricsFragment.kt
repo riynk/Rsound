@@ -3,9 +3,11 @@ package code.name.monkey.retromusic.fragments.player
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.view.View
+import android.view.Gravity
 import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.core.view.isVisible
+import androidx.core.graphics.ColorUtils
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
 import code.name.monkey.retromusic.R
@@ -44,6 +46,7 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
     private var lyrics: Lyrics? = null
     private var useTtmlLyrics = false
     private var lyricsLoadToken = 0
+    private var ttmlDocument: TtmlUtils.ParsedDocument? = null
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -92,6 +95,7 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
             } else {
                 progressViewUpdateHelper?.stop()
                 binding.root.isVisible = false
+                ttmlDocument = null
             }
         }
     }
@@ -140,7 +144,15 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
                         content.isNotBlank() -> "LRC"
                         else -> ""
                     }
-                    Triple(Lyrics.parse(song, content), format, lrcFile != null && ttmlFile != null)
+                    val parsedDocument = if (TtmlUtils.isTtml(content)) {
+                        TtmlUtils.parseDocument(content)
+                    } else {
+                        null
+                    }
+                    Pair(
+                        Triple(Lyrics.parse(song, content), format, lrcFile != null && ttmlFile != null),
+                        parsedDocument
+                    )
                 } catch (err: FileNotFoundException) {
                     null
                 } catch (e: CannotReadException) {
@@ -148,10 +160,11 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
                 }
             }
             if (_binding == null || requestToken != lyricsLoadToken) return@launch
-            lyrics = result?.first
-            binding.playerLyricsFormat.text = result?.second.orEmpty()
-            binding.playerLyricsFormat.isVisible = !result?.second.isNullOrBlank()
-            binding.playerLyricsFormat.isClickable = result?.third == true
+            lyrics = result?.first?.first
+            ttmlDocument = result?.second
+            binding.playerLyricsFormat.text = result?.first?.second.orEmpty()
+            binding.playerLyricsFormat.isVisible = !result?.first?.second.isNullOrBlank()
+            binding.playerLyricsFormat.isClickable = result?.first?.third == true
         }
     }
 
@@ -169,12 +182,23 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
         lyricsLayout.isVisible = true
         lyricsLayout.alpha = 1f
 
+        val document = ttmlDocument
         val oldLine = lyricsLine2.text.toString()
-        val line = synchronizedLyrics.getLine(progress)
+        val line = document?.getPlainLine(progress.toLong()) ?: synchronizedLyrics.getLine(progress)
+        val karaokeText = document?.getKaraokeText(
+            progress.toLong(),
+            lyricsLine2.currentTextColor,
+            ColorUtils.setAlphaComponent(lyricsLine2.currentTextColor, 128)
+        )
 
         if (oldLine != line || oldLine.isEmpty()) {
             lyricsLine1.text = oldLine
-            lyricsLine2.text = line
+            lyricsLine2.text = karaokeText ?: line
+            lyricsLine2.gravity = if (document?.isSecondaryVoice(progress.toLong()) == true) {
+                Gravity.END or Gravity.CENTER_VERTICAL
+            } else {
+                Gravity.CENTER
+            }
 
             lyricsLine1.isVisible = true
             lyricsLine2.isVisible = true
@@ -197,6 +221,9 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
             lyricsLine2.translationY = h
             lyricsLine2.animate().alpha(1f).translationY(0f).duration =
                 AbsPlayerFragment.VISIBILITY_ANIM_DURATION
+        } else if (karaokeText != null) {
+            // Reapply timed spans on every progress tick without restarting line animation.
+            lyricsLine2.text = karaokeText
         }
     }
 
@@ -226,6 +253,7 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
             .unregisterOnSharedPreferenceChangeListener(this)
         progressViewUpdateHelper?.stop()
         lyricsLoadToken++
+        ttmlDocument = null
         _binding = null
     }
 }
