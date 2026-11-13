@@ -18,12 +18,17 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.SharedPreferences
 import android.graphics.Color
+import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
 import android.text.InputType
+import android.text.SpannableStringBuilder
+import android.text.style.ForegroundColorSpan
+import android.text.style.RelativeSizeSpan
+import android.text.style.StyleSpan
 import android.view.*
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
@@ -95,6 +100,8 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
     private var translationSource = "en"
     private var translationTarget = "id"
     private var translatedLines: List<String> = emptyList()
+    private var translationAttempted = false
+    private var normalLyricsSource = ""
     private var translationJob: Job? = null
     private var lastBackgroundRequest: RequestBuilder<Drawable>? = null
 
@@ -161,8 +168,13 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
 
     override fun onUpdateProgressViews(progress: Int, total: Int) {
         binding.lyricsView.updateTime(progress.toLong())
-        if (translationEnabled && translatedLines.isEmpty() && translationJob == null && binding.lyricsView.hasLrc()) {
-            prepareTranslations()
+        if (translationEnabled && !translationAttempted && translationJob == null) {
+            val hasRows = if (lyricsType == LyricsType.SYNCED_LYRICS) {
+                binding.lyricsView.hasLrc()
+            } else {
+                normalLyricsSource.isNotBlank()
+            }
+            if (hasRows) prepareTranslations()
         }
     }
 
@@ -171,22 +183,24 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
             translationSource = source
             translationTarget = target
             translationEnabled = true
+            translationAttempted = false
             prepareTranslations()
         }
     }
 
     /** Translate all rows before playback selects them by timestamp index. */
     private fun prepareTranslations() {
-        val rows = binding.lyricsView.allLineTexts
+        val rows = if (lyricsType == LyricsType.SYNCED_LYRICS) {
+            binding.lyricsView.allLineTexts
+        } else {
+            normalLyricsSource.lines()
+        }
         translationJob?.cancel()
         translatedLines = emptyList()
-        if (!translationEnabled || rows.isEmpty()) {
-            binding.translatedLyrics.text = null
-            binding.translatedLyrics.isVisible = false
-            return
-        }
-        binding.translatedLyrics.isVisible = false
+        if (!translationEnabled || rows.isEmpty()) return
+        translationAttempted = true
         val requestedSong = song
+        val requestedType = lyricsType
         val source = translationSource
         val target = translationTarget
         translationJob = viewLifecycleOwner.lifecycleScope.launch {
@@ -194,13 +208,39 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
                 withContext(Dispatchers.IO) { LyricsTranslation.translateLines(rows, source, target) }
             }
             if (!isAdded || requestedSong.data != MusicPlayerRemote.currentSong.data ||
-                !translationEnabled || source != translationSource || target != translationTarget) return@launch
+                requestedType != lyricsType || !translationEnabled ||
+                source != translationSource || target != translationTarget) return@launch
             translationJob = null
             translatedLines = result.getOrElse {
                 Toast.makeText(requireContext(), R.string.translation_failed, Toast.LENGTH_SHORT).show()
                 return@launch
             }
-            binding.lyricsView.setTranslations(translatedLines)
+            if (requestedType == LyricsType.SYNCED_LYRICS) {
+                binding.lyricsView.setTranslations(translatedLines)
+            } else {
+                binding.normalLyrics.text = buildTranslatedNormalLyrics(rows, translatedLines)
+            }
+        }
+    }
+
+    private fun buildTranslatedNormalLyrics(rows: List<String>, translations: List<String>): CharSequence {
+        return SpannableStringBuilder().apply {
+            rows.forEachIndexed { index, sourceLine ->
+                if (index > 0) append('\n')
+                append(sourceLine)
+                val translated = translations.getOrNull(index)
+                if (!translated.isNullOrBlank()) {
+                    append('\n')
+                    val start = length
+                    append(translated)
+                    setSpan(RelativeSizeSpan(0.78f), start, length,
+                        SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    setSpan(StyleSpan(Typeface.ITALIC), start, length,
+                        SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    setSpan(ForegroundColorSpan(Color.WHITE), start, length,
+                        SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE)
+                }
+            }
         }
     }
 
@@ -208,9 +248,11 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
         translationJob?.cancel()
         translationJob = null
         translatedLines = emptyList()
-        binding.translatedLyrics.text = null
-        binding.translatedLyrics.isVisible = false
-        if (_binding != null) binding.lyricsView.setTranslations(emptyList())
+        translationAttempted = false
+        if (_binding != null) {
+            binding.lyricsView.setTranslations(emptyList())
+            binding.normalLyrics.text = normalLyricsSource
+        }
     }
 
     private fun setupViews() {
@@ -496,7 +538,8 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
         }
         binding.normalLyrics.isVisible = !lyrics.isNullOrEmpty()
         binding.noLyricsFound.isVisible = lyrics.isNullOrEmpty()
-        binding.normalLyrics.text = lyrics
+        normalLyricsSource = lyrics.orEmpty()
+        binding.normalLyrics.text = normalLyricsSource
     }
 
     /**
@@ -594,6 +637,8 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
         translationJob?.cancel()
         translationJob = null
         translatedLines = emptyList()
+        translationAttempted = false
+        normalLyricsSource = ""
         _binding = null
     }
 
