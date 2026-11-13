@@ -199,8 +199,40 @@ public final class TtmlUtils {
                         long lineStart = parsedParagraphStart >= 0
                             ? paragraphStart
                             : (!normalized.isEmpty() ? normalized.get(0).start : 0L);
-                        LrcEntry entry = new LrcEntry(lineStart, line);
-                        entry.setWordTimings(normalized);
+                        boolean hasBackground = false;
+                        for (LrcEntry.WordTiming word : normalized) {
+                            if (word.background) {
+                                hasBackground = true;
+                                break;
+                            }
+                        }
+
+                        LrcEntry entry;
+                        if (hasBackground) {
+                            LinePart mainPart = buildLinePart(line, normalized, false);
+                            LinePart backgroundPart = buildLinePart(line, normalized, true);
+                            if (mainPart.text.isEmpty()) {
+                                entry = new LrcEntry(lineStart, backgroundPart.text);
+                                entry.setWordTimings(backgroundPart.words);
+                            } else {
+                                entry = new LrcEntry(lineStart, mainPart.text);
+                                entry.setSecondText(backgroundPart.text);
+                                List<LrcEntry.WordTiming> combined = new ArrayList<>(mainPart.words);
+                                int backgroundOffset = mainPart.text.length() + 1;
+                                for (LrcEntry.WordTiming word : backgroundPart.words) {
+                                    combined.add(new LrcEntry.WordTiming(
+                                        word.start, word.end,
+                                        word.startIndex + backgroundOffset,
+                                        word.endIndex + backgroundOffset,
+                                        true, word.continuesWord, word.sustained
+                                    ));
+                                }
+                                entry.setWordTimings(combined);
+                            }
+                        } else {
+                            entry = new LrcEntry(lineStart, line);
+                            entry.setWordTimings(normalized);
+                        }
                         entry.setSpeaker(speaker);
                         entries.add(entry);
                     }
@@ -239,7 +271,7 @@ public final class TtmlUtils {
                 if (entry.getTime() != lineTime) continue;
                 if (result.length() > 0) result.append('\n');
                 int lineStart = result.length();
-                result.append(entry.getText());
+                result.append(entry.getShowText());
                 int lineEnd = result.length();
                 Layout.Alignment alignment = "v2".equalsIgnoreCase(entry.getSpeaker())
                     ? Layout.Alignment.ALIGN_OPPOSITE
@@ -250,12 +282,14 @@ public final class TtmlUtils {
 
                 for (LrcEntry.WordTiming word : entry.getWordTimings()) {
                     int start = lineStart + Math.max(0, Math.min(word.startIndex, entry.getText().length()));
-                    int end = lineStart + Math.max(0, Math.min(word.endIndex, entry.getText().length()));
+                    int end = lineStart + Math.max(0, Math.min(word.endIndex, entry.getShowText().length()));
                     if (end <= start) continue;
-                    int color = timeMs >= word.start && timeMs < word.end
-                        ? activeColor : inactiveColor;
-                    result.setSpan(new ForegroundColorSpan(color), start, end,
-                        SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    long duration = Math.max(1L, word.end - word.start);
+                    float progress = Math.max(0f, Math.min(1f,
+                        (timeMs - word.start) / (float) duration));
+                    result.setSpan(new LrcEntry.ProgressiveFillSpan(
+                            activeColor, inactiveColor, progress, word.background),
+                        start, end, SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE);
                     if (word.background) {
                         result.setSpan(new StyleSpan(Typeface.ITALIC), start, end,
                             SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -281,7 +315,7 @@ public final class TtmlUtils {
             for (LrcEntry entry : entries) {
                 if (entry.getTime() != lineTime) continue;
                 if (result.length() > 0) result.append('\n');
-                result.append(entry.getText());
+                result.append(entry.getShowText());
             }
             return result.toString();
         }
@@ -310,6 +344,38 @@ public final class TtmlUtils {
             return content.length() + ":" + key;
         } catch (Exception ignored) {
             return content.length() + ":" + content.hashCode();
+        }
+    }
+
+    private static LinePart buildLinePart(String source,
+        List<LrcEntry.WordTiming> sourceWords, boolean background) {
+        StringBuilder text = new StringBuilder();
+        List<LrcEntry.WordTiming> timings = new ArrayList<>();
+        for (LrcEntry.WordTiming word : sourceWords) {
+            if (word.background != background) continue;
+            int start = Math.max(0, Math.min(word.startIndex, source.length()));
+            int end = Math.max(start, Math.min(word.endIndex, source.length()));
+            if (end <= start) continue;
+            String syllable = source.substring(start, end).replace("(", "").replace(")", "");
+            if (syllable.isEmpty()) continue;
+            if (text.length() > 0 && !word.continuesWord) text.append(' ');
+            int textStart = text.length();
+            text.append(syllable);
+            timings.add(new LrcEntry.WordTiming(
+                word.start, word.end, textStart, text.length(),
+                background, word.continuesWord, word.sustained
+            ));
+        }
+        return new LinePart(text.toString(), timings);
+    }
+
+    private static final class LinePart {
+        final String text;
+        final List<LrcEntry.WordTiming> words;
+
+        LinePart(String text, List<LrcEntry.WordTiming> words) {
+            this.text = text;
+            this.words = words;
         }
     }
 
