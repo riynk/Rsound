@@ -526,4 +526,6 @@
     <string name="try_retro_music_premium" translatable="false" />
     <string name="listing_files" translatable="false" />
 
+    <string name="switch_to_ttml">Switch to TTML</string>
+    <string name="switch_to_lrc">Switch to LRC</string>
 </resources>
