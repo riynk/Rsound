@@ -528,4 +528,8 @@
 
     <string name="switch_to_ttml">Switch to TTML</string>
     <string name="switch_to_lrc">Switch to LRC</string>
+    <string name="download_lyrics">Download lyrics online</string>
+    <string name="lyrics_saved">Lyrics saved (%1$s)</string>
+    <string name="lyrics_not_found">No matching lyrics were found</string>
+    <string name="lyrics_download_failed">Unable to reach lyric services. Check your connection.</string>
 </resources>
