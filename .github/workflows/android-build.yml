@@ -1,0 +1,52 @@
+name: Android Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: android-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Compile Android variants
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Build Normal and F-Droid debug APKs
+        run: ./gradlew :app:assembleNormalDebug :app:assembleFdroidDebug --stacktrace
+
+      - name: Run Normal debug unit tests
+        run: ./gradlew :app:testNormalDebugUnitTest --stacktrace
+
+      - name: Upload APKs and test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rsound-debug-apks
+          path: |
+            app/build/outputs/apk/*/debug/*.apk
+            app/build/reports/tests/
+          if-no-files-found: warn
+          retention-days: 14
