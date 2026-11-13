@@ -278,7 +278,7 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
                 binding.playerLyricsTranslated.text = getString(R.string.translation_failed)
                 return@launch
             }
-            onUpdateProgressViews(MusicPlayerRemote.position, MusicPlayerRemote.duration)
+            onUpdateProgressViews(MusicPlayerRemote.position, MusicPlayerRemote.songDurationMillis)
         }
     }
 
