@@ -169,6 +169,23 @@ object LyricUtil {
         return library.takeIf { it.isFile }
     }
 
+    fun writePlainLyricsToLoc(title: String, artist: String, lyrics: String): File? {
+        return try {
+            val file = File(lrcRootPath, "$title - $artist.txt")
+            file.parentFile?.mkdirs()
+            file.writeText(lyrics, Charsets.UTF_8)
+            file
+        } catch (e: IOException) {
+            Log.e(TAG, "Unable to save plain lyrics", e)
+            null
+        }
+    }
+
+    fun getPlainLyricsFile(song: Song): File? {
+        val file = File(lrcRootPath, "\${song.title} - \${song.artistName}.txt")
+        return file.takeIf { it.isFile }
+    }
+
     fun writeTtmlToLoc(title: String, artist: String, ttmlContent: String): File? {
         return try {
             val file = File(lrcRootPath, "$title - $artist.ttml")
