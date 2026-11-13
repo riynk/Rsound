@@ -411,24 +411,29 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
     private fun loadLRCLyrics(): Boolean {
         val lrcFile = LyricUtil.getLrcLyricsFile(song)
         val ttmlFile = LyricUtil.getTtmlLyricsFile(song)
-        val selectedFile = when {
+        var selectedFile = when {
             lrcFile != null && ttmlFile != null ->
                 if (useTtmlLyrics) ttmlFile else lrcFile
             lrcFile != null -> lrcFile
             else -> ttmlFile
         }
 
+        if (selectedFile != null && selectedFile.extension.equals("lrc", ignoreCase = true)) {
+            val content = LyricUtil.getStringFromLrc(selectedFile)
+            val hasTimestamps = Regex("(?m)^\\s*\\[\\d{1,3}:\\d{2}(?:[.:]\\d{1,3})?\\]")
+                .containsMatchIn(content)
+            if (!hasTimestamps && ttmlFile != null) {
+                selectedFile = ttmlFile
+                useTtmlLyrics = true
+            } else if (!hasTimestamps) {
+                binding.lyricsView.setLabel(getString(R.string.empty))
+                updateLyricsFormatAction()
+                return false
+            }
+        }
+
         updateLyricsFormatAction()
         if (selectedFile != null) {
-            if (selectedFile.extension.equals("lrc", ignoreCase = true)) {
-                val content = LyricUtil.getStringFromLrc(selectedFile)
-                val hasTimestamps = Regex("(?m)^\\s*\\[\\d{1,3}:\\d{2}(?:[.:]\\d{1,3})?\\]")
-                    .containsMatchIn(content)
-                if (!hasTimestamps) {
-                    binding.lyricsView.setLabel(getString(R.string.empty))
-                    return false
-                }
-            }
             binding.lyricsView.loadLrc(selectedFile)
         } else {
             val embeddedLyrics = LyricUtil.getEmbeddedSyncedLyrics(song.data)
