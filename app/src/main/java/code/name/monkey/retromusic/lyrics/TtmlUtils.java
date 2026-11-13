@@ -40,12 +40,13 @@ public final class TtmlUtils {
             XmlPullParserFactory factory = XmlPullParserFactory.newInstance();
             factory.setNamespaceAware(true);
             XmlPullParser parser = factory.newPullParser();
+            String xml = content.startsWith("\uFEFF") ? content.substring(1) : content;
             try {
                 parser.setFeature(XmlPullParser.FEATURE_PROCESS_DOCDECL, false);
             } catch (Exception ignored) {
                 // The Android parser may not expose this optional feature.
             }
-            parser.setInput(new StringReader(content));
+            parser.setInput(new StringReader(xml));
 
             int event = parser.getEventType();
             while (event != XmlPullParser.END_DOCUMENT) {
@@ -63,6 +64,9 @@ public final class TtmlUtils {
                                 long nestedStart = parseTime(attribute(parser, "begin"));
                                 if (nestedStart >= 0) start = nestedStart;
                             }
+                        } else if (event == XmlPullParser.START_TAG &&
+                                "br".equals(parser.getName())) {
+                            text.append('\n');
                         } else if (event == XmlPullParser.TEXT ||
                                 event == XmlPullParser.CDSECT ||
                                 event == XmlPullParser.ENTITY_REF) {
