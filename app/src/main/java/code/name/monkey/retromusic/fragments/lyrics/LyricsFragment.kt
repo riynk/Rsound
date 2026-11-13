@@ -261,9 +261,22 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
     }
 
 
+    private fun selectedSyncedLyricsFile(): File? {
+        val lrcFile = LyricUtil.getLrcLyricsFile(song)
+        val ttmlFile = LyricUtil.getTtmlLyricsFile(song)
+        return when {
+            lrcFile != null && ttmlFile != null ->
+                if (useTtmlLyrics) ttmlFile else lrcFile
+            lrcFile != null -> lrcFile
+            else -> ttmlFile
+        }
+    }
+
     @SuppressLint("CheckResult")
     private fun editSyncedLyrics(lyrics: String? = null) {
-        val content = lyrics ?: LyricUtil.getStringFromLrc(LyricUtil.getSyncedLyricsFile(song))
+        val selectedFile = selectedSyncedLyricsFile()
+        val content = lyrics ?: selectedFile?.let { LyricUtil.getStringFromLrc(it) }
+            ?: LyricUtil.getEmbeddedSyncedLyrics(song.data).orEmpty()
 
         val song = song
         materialDialog().show {
@@ -275,10 +288,9 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
             ) { _, input ->
                 if (VersionUtils.hasR()) {
                     syncedLyrics = input.toString()
-                    val lrcFile = LyricUtil.getSyncedLyricsFile(song)
-                    if (lrcFile?.exists() == true) {
+                    if (selectedFile?.exists() == true) {
                         syncedFileUri =
-                            UriUtil.getUriFromPath(requireContext(), lrcFile.absolutePath)
+                            UriUtil.getUriFromPath(requireContext(), selectedFile.absolutePath)
                         val pendingIntent =
                             MediaStore.createWriteRequest(
                                 requireContext().contentResolver,
@@ -306,7 +318,11 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
                         }
                     }
                 } else {
-                    LyricUtil.writeLrc(song, input.toString())
+                    if (selectedFile?.exists() == true) {
+                        selectedFile.writeText(input.toString())
+                    } else {
+                        LyricUtil.writeLrc(song, input.toString())
+                    }
                 }
             }
             positiveButton(res = R.string.save) {
