@@ -34,6 +34,7 @@ import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.animation.AccelerateDecelerateInterpolator;
+import android.view.animation.OvershootInterpolator;
 import android.widget.Scroller;
 
 import androidx.core.content.ContextCompat;
@@ -658,7 +659,8 @@ public class LrcView extends View {
         mCurrentLineScale = 1f;
         mLineScaleAnimator = ValueAnimator.ofFloat(1f, 1.05f);
         mLineScaleAnimator.setDuration(220L);
-        mLineScaleAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
+        // Spring-like focus transition: slight overshoot, then settle at the active scale.
+        mLineScaleAnimator.setInterpolator(new OvershootInterpolator(0.65f));
         mLineScaleAnimator.addUpdateListener(animation -> {
             mCurrentLineScale = (float) animation.getAnimatedValue();
             invalidate();
