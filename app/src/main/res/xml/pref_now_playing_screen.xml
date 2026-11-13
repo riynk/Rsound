@@ -13,13 +13,13 @@
         android:key="extra_song_info"
         android:layout="@layout/list_item_view_switch"
         android:summary="@string/pref_summary_extra_song_info"
-        android:title="@string/pref_title_extra_song_info" />
+        android:title="@string/pref_title_extra_song_info"  app:icon="@drawable/ic_info_outline" />
 
     <code.name.monkey.appthemehelper.common.prefs.supportv7.ATESwitchPreference
         android:defaultValue="false"
         android:key="snowfall"
         android:layout="@layout/list_item_view_switch_no_title"
-        android:title="@string/pref_snow_fall_title" />
+        android:title="@string/pref_snow_fall_title"  app:icon="@drawable/ic_snowflake" />
 
     <code.name.monkey.appthemehelper.common.prefs.supportv7.ATEListPreference
         android:defaultValue="0"
@@ -27,27 +27,27 @@
         android:entryValues="@array/pref_lyrics_type_values"
         android:key="lyrics_type"
         android:layout="@layout/list_item_view"
-        android:title="@string/pref_title_lyrics_type" />
+        android:title="@string/pref_title_lyrics_type"  app:icon="@drawable/ic_lyrics" />
 
     <code.name.monkey.appthemehelper.common.prefs.supportv7.ATESwitchPreference
         android:defaultValue="false"
         android:key="screen_on_lyrics"
         android:layout="@layout/list_item_view_switch"
         android:summary="@string/pref_keep_screen_on_summary"
-        android:title="@string/pref_title_lyrics_screen_on" />
+        android:title="@string/pref_title_lyrics_screen_on"  app:icon="@drawable/ic_screen_lock_portrait" />
 
     <code.name.monkey.appthemehelper.common.prefs.supportv7.ATESwitchPreference
         android:defaultValue="false"
         android:key="circle_play_button"
         android:layout="@layout/list_item_view_switch_no_title"
-        android:title="@string/pref_title_circle_button" />
+        android:title="@string/pref_title_circle_button"  app:icon="@drawable/ic_play_circle" />
 
     <code.name.monkey.appthemehelper.common.prefs.supportv7.ATESwitchPreference
         android:defaultValue="true"
         android:key="swipe_anywhere_now_playing"
         android:layout="@layout/list_item_view_switch"
         android:summary="@string/pref_summary_swipe_anywhere_now_playing"
-        android:title="@string/pref_title_swipe_anywhere_now_playing" />
+        android:title="@string/pref_title_swipe_anywhere_now_playing"  app:icon="@drawable/ic_drag_vertical" />
 
     <code.name.monkey.appthemehelper.common.prefs.supportv7.ATEPreferenceCategory
         android:layout="@layout/preference_category_title"
@@ -65,7 +65,7 @@
             android:entryValues="@array/pref_album_cover_transform_values"
             android:key="album_cover_transform"
             android:layout="@layout/list_item_view"
-            android:title="@string/pref_title_album_cover_transform" />
+            android:title="@string/pref_title_album_cover_transform"  app:icon="@drawable/ic_image" />
 
         <code.name.monkey.appthemehelper.common.prefs.supportv7.ATESwitchPreference
             android:layout="@layout/list_item_view_switch"
