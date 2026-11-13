@@ -382,7 +382,7 @@ class CoverLrcView @JvmOverloads constructor(
                 val previousTime = mLrcEntryList[mCurrentLine].time
                 if (mWordHighlightTime >= 0L) {
                     for (entry in mLrcEntryList) {
-                        if (entry.time == previousTime && entry.hasWordTimings()) {
+                        if (entry.time == previousTime && entry.isTtml()) {
                             entry.clearWordHighlight(mLrcPaint, lrcWidth.toInt(), mTextGravity, mNormalTextColor)
                         }
                     }
@@ -397,15 +397,15 @@ class CoverLrcView @JvmOverloads constructor(
                 }
             }
             val activeTime = mLrcEntryList[line].time
-            var hasTimedWords = false
+            var hasTtmlEntries = false
             for (entry in mLrcEntryList) {
-                if (entry.time == activeTime && entry.hasWordTimings()) {
+                if (entry.time == activeTime && entry.isTtml()) {
                     entry.updateWordHighlight(mLrcPaint, lrcWidth.toInt(), mTextGravity, time,
                         mCurrentTextColor, mNormalTextColor)
-                    hasTimedWords = true
+                    hasTtmlEntries = true
                 }
             }
-            mWordHighlightTime = if (hasTimedWords) activeTime else -1L
+            mWordHighlightTime = if (hasTtmlEntries) activeTime else -1L
             invalidate()
         }
     }

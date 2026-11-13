@@ -47,6 +47,7 @@ class LrcEntry implements Comparable<LrcEntry> {
   private int textGravity = -1;
   private String speaker;
   private boolean ttml;
+  private boolean backgroundOnly;
   private long ttmlLineEndTime = -1L;
   /** 歌词距离视图顶部的距离 */
   private float offset = Float.MIN_VALUE;
@@ -83,7 +84,9 @@ class LrcEntry implements Comparable<LrcEntry> {
         align = Layout.Alignment.ALIGN_OPPOSITE;
         break;
     }
-    staticLayout = new StaticLayout(buildDisplayText(getShowText(), translationColor), paint, width, align, 1f, 0f, false);
+    staticLayout = new StaticLayout(
+        buildDisplayText(backgroundOnly ? "" : text, translationColor),
+        paint, width, align, 1f, 0f, false);
 
     offset = Float.MIN_VALUE;
   }
@@ -119,6 +122,14 @@ class LrcEntry implements Comparable<LrcEntry> {
     return ttml;
   }
 
+  void setBackgroundOnly(boolean backgroundOnly) {
+    this.backgroundOnly = backgroundOnly;
+  }
+
+  boolean isBackgroundOnly() {
+    return backgroundOnly;
+  }
+
   void setTtmlLineEndTime(long endTime) {
     this.ttmlLineEndTime = endTime;
   }
@@ -139,7 +150,6 @@ class LrcEntry implements Comparable<LrcEntry> {
 
   void updateWordHighlight(TextPaint paint, int width, int gravity, long time,
       int activeColor, int inactiveColor) {
-    if (wordTimings.isEmpty()) return;
     gravity = getTextGravity(gravity);
     Layout.Alignment align;
     switch (gravity) {
@@ -152,6 +162,29 @@ class LrcEntry implements Comparable<LrcEntry> {
       default:
         align = Layout.Alignment.ALIGN_CENTER;
         break;
+    }
+    if (wordTimings.isEmpty()) {
+      TextPaint activePaint = new TextPaint(paint);
+      activePaint.setColor(activeColor);
+      SpannableStringBuilder activeText;
+      if (backgroundOnly) {
+        activeText = new SpannableStringBuilder(getShowText());
+        if (activeText.length() > 0) {
+          int alpha = Math.min(190, Math.max(96, ((activeColor >>> 24) & 0xFF) * 3 / 4));
+          int backgroundColor = (activeColor & 0x00FFFFFF) | (alpha << 24);
+          activeText.setSpan(new RelativeSizeSpan(0.78f), 0, activeText.length(),
+              SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE);
+          activeText.setSpan(new StyleSpan(Typeface.BOLD_ITALIC), 0, activeText.length(),
+              SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE);
+          activeText.setSpan(new ForegroundColorSpan(backgroundColor), 0, activeText.length(),
+              SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        appendTranslation(activeText, inactiveColor);
+      } else {
+        activeText = new SpannableStringBuilder(buildDisplayText(getShowText(), inactiveColor));
+      }
+      staticLayout = new StaticLayout(activeText, activePaint, width, align, 1f, 0f, false);
+      return;
     }
     SpannableStringBuilder styled = new SpannableStringBuilder(getShowText());
     for (WordTiming word : wordTimings) {

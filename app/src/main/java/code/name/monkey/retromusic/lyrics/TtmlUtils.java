@@ -13,6 +13,7 @@ import android.text.SpannableStringBuilder;
 import android.text.Layout;
 import android.text.style.AlignmentSpan;
 import android.text.style.ForegroundColorSpan;
+import android.text.style.RelativeSizeSpan;
 import android.text.style.StyleSpan;
 import android.graphics.Typeface;
 
@@ -84,6 +85,7 @@ public final class TtmlUtils {
             LrcEntry copy = new LrcEntry(original.getTime(), original.getText(), original.getSecondText());
             copy.setSpeaker(original.getSpeaker());
             copy.setTtml(original.isTtml());
+            copy.setBackgroundOnly(original.isBackgroundOnly());
             copy.setTtmlLineEndTime(original.getWordEndTime() > original.getTime()
                 ? original.getWordEndTime() : -1L);
             List<LrcEntry.WordTiming> timings = new ArrayList<>();
@@ -260,7 +262,7 @@ public final class TtmlUtils {
                         long lineStart = parsedParagraphStart >= 0
                             ? paragraphStart
                             : (!normalized.isEmpty() ? normalized.get(0).start : 0L);
-                        boolean hasBackground = false;
+                        boolean hasBackground = paragraphBackground;
                         for (LrcEntry.WordTiming word : normalized) {
                             if (word.background) {
                                 hasBackground = true;
@@ -273,7 +275,9 @@ public final class TtmlUtils {
                             LinePart mainPart = buildLinePart(line, normalized, false);
                             LinePart backgroundPart = buildLinePart(line, normalized, true);
                             if (mainPart.text.isEmpty()) {
-                                entry = new LrcEntry(lineStart, backgroundPart.text);
+                                String backgroundText = backgroundPart.text.isEmpty() ? line : backgroundPart.text;
+                                entry = new LrcEntry(lineStart, backgroundText);
+                                entry.setBackgroundOnly(true);
                                 entry.setWordTimings(backgroundPart.words);
                             } else {
                                 entry = new LrcEntry(lineStart, mainPart.text);
@@ -340,6 +344,16 @@ public final class TtmlUtils {
                     ? Layout.Alignment.ALIGN_OPPOSITE : Layout.Alignment.ALIGN_NORMAL;
                 result.setSpan(new AlignmentSpan.Standard(alignment), lineStart, lineEnd,
                     SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE);
+                if (entry.isBackgroundOnly() && entry.getWordTimings().isEmpty() && lineEnd > lineStart) {
+                    int alpha = Math.min(190, Math.max(96, ((activeColor >>> 24) & 0xFF) * 3 / 4));
+                    int backgroundColor = (activeColor & 0x00FFFFFF) | (alpha << 24);
+                    result.setSpan(new RelativeSizeSpan(0.78f), lineStart, lineEnd,
+                        SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    result.setSpan(new StyleSpan(Typeface.BOLD_ITALIC), lineStart, lineEnd,
+                        SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    result.setSpan(new ForegroundColorSpan(backgroundColor), lineStart, lineEnd,
+                        SpannableStringBuilder.SPAN_EXCLUSIVE_EXCLUSIVE);
+                }
 
                 for (LrcEntry.WordTiming word : entry.getWordTimings()) {
                     int start = lineStart + Math.max(0, Math.min(word.startIndex, entry.getShowText().length()));
@@ -376,12 +390,13 @@ public final class TtmlUtils {
             long previousTime = Long.MIN_VALUE;
             StringBuilder row = new StringBuilder();
             for (LrcEntry entry : entries) {
+                if (entry.isBackgroundOnly()) continue;
                 if (entry.getTime() != previousTime) {
                     if (row.length() > 0) result.add(row.toString());
                     row.setLength(0);
                     previousTime = entry.getTime();
                 } else if (row.length() > 0) row.append('\n');
-                row.append(entry.getShowText());
+                row.append(entry.getText());
             }
             if (row.length() > 0) result.add(row.toString());
             return result;
@@ -404,9 +419,9 @@ public final class TtmlUtils {
             long lineTime = findLineTime(timeMs);
             StringBuilder result = new StringBuilder();
             for (LrcEntry entry : entries) {
-                if (entry.getTime() != lineTime) continue;
+                if (entry.getTime() != lineTime || entry.isBackgroundOnly()) continue;
                 if (result.length() > 0) result.append('\n');
-                result.append(entry.getShowText());
+                result.append(entry.getText());
             }
             return result.toString();
         }

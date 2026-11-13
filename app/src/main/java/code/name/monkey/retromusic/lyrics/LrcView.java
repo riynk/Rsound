@@ -474,23 +474,23 @@ public class LrcView extends View {
                     long activeLineTime = mLrcEntryList.get(line).getTime();
                     if (mWordHighlightTime >= 0 && mWordHighlightTime != activeLineTime) {
                         for (LrcEntry entry : mLrcEntryList) {
-                            if (entry.getTime() == mWordHighlightTime && entry.hasWordTimings()) {
+                            if (entry.getTime() == mWordHighlightTime && entry.isTtml()) {
                                 entry.clearWordHighlight(
                                         mLrcPaint, (int) getLrcWidth(), mTextGravity, mNormalTextColor);
                             }
                         }
                     }
 
-                    boolean hasTimedWords = false;
+                    boolean hasTtmlEntries = false;
                     for (LrcEntry entry : mLrcEntryList) {
-                        if (entry.getTime() == activeLineTime && entry.hasWordTimings()) {
+                        if (entry.getTime() == activeLineTime && entry.isTtml()) {
                             entry.updateWordHighlight(
                                     mLrcPaint, (int) getLrcWidth(), mTextGravity, time,
                                     mCurrentTextColor, mNormalTextColor);
-                            hasTimedWords = true;
+                            hasTtmlEntries = true;
                         }
                     }
-                    mWordHighlightTime = hasTimedWords ? activeLineTime : -1L;
+                    mWordHighlightTime = hasTtmlEntries ? activeLineTime : -1L;
                     invalidate();
                 });
     }
