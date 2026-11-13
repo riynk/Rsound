@@ -220,6 +220,14 @@ class LrcEntry implements Comparable<LrcEntry> {
     return time;
   }
 
+  long getWordEndTime() {
+    long end = time;
+    for (WordTiming word : wordTimings) {
+      if (word.end > end) end = word.end;
+    }
+    return end;
+  }
+
   StaticLayout getStaticLayout() {
     return staticLayout;
   }
