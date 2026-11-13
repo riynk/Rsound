@@ -154,6 +154,14 @@ object LyricUtil {
         return File(lrcRootPath, "$title - $artist.ttml")
     }
 
+    fun getLrcLyricsFile(song: Song): File? {
+        return when {
+            isLrcOriginalFileExist(song.data) -> getLocalLyricOriginalFile(song.data)
+            isLrcFileExist(song.title, song.artistName) -> getLocalLyricFile(song.title, song.artistName)
+            else -> null
+        }
+    }
+
     fun getTtmlLyricsFile(song: Song): File? {
         val original = File(getTtmlOriginalPath(song.data))
         if (original.isFile) return original
@@ -164,11 +172,7 @@ object LyricUtil {
     fun getSyncedLyricsFile(song: Song): File? {
         // Preserve the established LRC preference. TTML is used when no LRC
         // sidecar exists, so existing libraries do not silently change format.
-        return when {
-            isLrcOriginalFileExist(song.data) -> getLocalLyricOriginalFile(song.data)
-            isLrcFileExist(song.title, song.artistName) -> getLocalLyricFile(song.title, song.artistName)
-            else -> getTtmlLyricsFile(song)
-        }
+        return getLrcLyricsFile(song) ?: getTtmlLyricsFile(song)
     }
 
     fun getEmbeddedSyncedLyrics(data: String): String? {
