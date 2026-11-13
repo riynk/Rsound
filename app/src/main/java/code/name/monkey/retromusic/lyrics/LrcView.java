@@ -76,6 +76,8 @@ public class LrcView extends View {
     private float mLrcPadding;
     private OnPlayClickListener mOnPlayClickListener;
     private ValueAnimator mAnimator;
+    private ValueAnimator mLineScaleAnimator;
+    private float mCurrentLineScale = 1f;
     private GestureDetector mGestureDetector;
     private Scroller mScroller;
     private float mOffset;
@@ -472,6 +474,7 @@ public class LrcView extends View {
 
         canvas.translate(0, mOffset);
 
+        boolean ttmlMode = mLrcEntryList.get(mCurrentLine).hasWordTimings();
         float y = 0;
         for (int i = 0; i < mLrcEntryList.size(); i++) {
             if (i > 0) {
@@ -487,7 +490,6 @@ public class LrcView extends View {
                 mLrcPaint.setColor(mNormalTextColor);
             }
             StaticLayout layout = mLrcEntryList.get(i).getStaticLayout();
-            boolean ttmlMode = mLrcEntryList.get(mCurrentLine).hasWordTimings();
             if (ttmlMode) {
                 int distance = Math.abs(i - mCurrentLine);
                 int alpha = distance == 0 ? 255 : (distance == 1 ? 191 : (distance == 2 ? 128 : 71));
