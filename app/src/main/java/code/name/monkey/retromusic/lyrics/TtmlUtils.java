@@ -9,6 +9,10 @@
 package code.name.monkey.retromusic.lyrics;
 
 import android.text.TextUtils;
+import android.text.SpannableString;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.StyleSpan;
+import android.graphics.Typeface;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserFactory;
@@ -149,6 +153,58 @@ public final class TtmlUtils {
         }
         Collections.sort(entries);
         return entries;
+    }
+
+    /** Parsed TTML document reusable by both the full lyrics page and Now Playing. */
+    public static final class ParsedDocument {
+        private final List<LrcEntry> entries;
+
+        private ParsedDocument(List<LrcEntry> entries) {
+            this.entries = entries;
+        }
+
+        private LrcEntry findLine(long timeMs) {
+            LrcEntry current = null;
+            for (LrcEntry entry : entries) {
+                if (entry.getTime() > timeMs) break;
+                current = entry;
+            }
+            return current != null ? current : (entries.isEmpty() ? null : entries.get(0));
+        }
+
+        public CharSequence getKaraokeText(long timeMs, int activeColor, int inactiveColor) {
+            LrcEntry entry = findLine(timeMs);
+            if (entry == null) return "";
+            SpannableString result = new SpannableString(entry.getText());
+            for (LrcEntry.WordTiming word : entry.wordTimings) {
+                int start = Math.max(0, Math.min(word.startIndex, result.length()));
+                int end = Math.max(start, Math.min(word.endIndex, result.length()));
+                if (end <= start) continue;
+                int color = timeMs >= word.start && timeMs < word.end
+                    ? activeColor : inactiveColor;
+                result.setSpan(new ForegroundColorSpan(color), start, end,
+                    SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE);
+                if (word.background) {
+                    result.setSpan(new StyleSpan(Typeface.ITALIC), start, end,
+                        SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE);
+                }
+            }
+            return result;
+        }
+
+        public boolean isSecondaryVoice(long timeMs) {
+            LrcEntry entry = findLine(timeMs);
+            return entry != null && "v2".equalsIgnoreCase(entry.getSpeaker());
+        }
+
+        public String getPlainLine(long timeMs) {
+            LrcEntry entry = findLine(timeMs);
+            return entry == null ? "" : entry.getText();
+        }
+    }
+
+    public static ParsedDocument parseDocument(String content) {
+        return new ParsedDocument(parseTtml(content));
     }
 
     private static final class SpanFrame {
