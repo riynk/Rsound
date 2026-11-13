@@ -70,25 +70,23 @@ class LrcUtils {
       return null;
     }
 
-    List<LrcEntry> entryList = new ArrayList<>();
     try {
-      BufferedReader br =
-          new BufferedReader(
-              new InputStreamReader(new FileInputStream(lrcFile), StandardCharsets.UTF_8));
-      String line;
-      while ((line = br.readLine()) != null) {
-        List<LrcEntry> list = parseLine(line);
-        if (list != null && !list.isEmpty()) {
-          entryList.addAll(list);
+      byte[] bytes = new byte[(int) Math.min(lrcFile.length(), 4L * 1024L * 1024L)];
+      try (FileInputStream input = new FileInputStream(lrcFile);
+           ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+        byte[] buffer = new byte[8192];
+        int count;
+        while ((count = input.read(buffer)) != -1) {
+          output.write(buffer, 0, count);
+          if (output.size() > 4 * 1024 * 1024) return new ArrayList<>();
         }
+        String content = new String(output.toByteArray(), StandardCharsets.UTF_8);
+        return parseLrc(content);
       }
-      br.close();
     } catch (IOException e) {
       e.printStackTrace();
+      return new ArrayList<>();
     }
-
-    Collections.sort(entryList);
-    return entryList;
   }
 
   /** 从文本解析双语歌词 */
@@ -122,6 +120,10 @@ class LrcUtils {
 
     if (lrcText.startsWith("\uFEFF")) {
       lrcText = lrcText.replace("\uFEFF", "");
+    }
+
+    if (TtmlUtils.isTtml(lrcText)) {
+      return TtmlUtils.parseTtml(lrcText);
     }
 
     List<LrcEntry> entryList = new ArrayList<>();
