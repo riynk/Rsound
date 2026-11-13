@@ -95,7 +95,11 @@ object OnlineLyricsRepository {
             .addQueryParameter("duration", durationSeconds)
             .build()
 
-        val exact = getJson(exactUrl)
+        val exact = try {
+            getJson(exactUrl)
+        } catch (_: IOException) {
+            null
+        }
         val exactLyrics = exact?.let { preferredLyrics(it) }
         if (!exactLyrics.isNullOrBlank()) return exactLyrics
 
@@ -178,6 +182,7 @@ object OnlineLyricsRepository {
     @Throws(IOException::class)
     private fun fetchLyricsPlus(song: Song): String? {
         val duration = (song.duration / 1000L).coerceAtLeast(0L).toString()
+        var lastNetworkFailure: IOException? = null
         for (host in lyricsPlusMirrors) {
             val querySets = listOf(
                 listOf("title" to song.title, "artist" to song.artistName,
@@ -189,11 +194,17 @@ object OnlineLyricsRepository {
                 val builder = HttpUrl.Builder().scheme("https").host(host)
                     .addPathSegments("v1/ttml/get")
                 query.forEach { (key, value) -> builder.addQueryParameter(key, value) }
-                val body = try { getText(builder.build()) } catch (_: IOException) { null } ?: continue
+                val body = try {
+                    getText(builder.build())
+                } catch (error: IOException) {
+                    lastNetworkFailure = error
+                    null
+                } ?: continue
                 val ttml = extractTtml(body)
                 if (!ttml.isNullOrBlank() && TtmlUtils.isTtml(ttml)) return ttml
             }
         }
+        if (lastNetworkFailure != null) throw lastNetworkFailure
         return null
     }
 
@@ -223,7 +234,7 @@ object OnlineLyricsRepository {
         client.newCall(request).execute().use { response ->
             if (response.code == 404 || response.code == 400) return null
             if (response.code == 429 || response.code >= 500) {
-                throw IOException("Lyrics service temporarily unavailable (\${response.code})")
+                throw IOException("Lyrics service temporarily unavailable (" + response.code + ")")
             }
             if (!response.isSuccessful) return null
             return response.body?.string()?.takeIf { it.isNotBlank() && it != "{}" }
