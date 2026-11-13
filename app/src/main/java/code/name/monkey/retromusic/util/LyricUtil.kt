@@ -169,6 +169,18 @@ object LyricUtil {
         return library.takeIf { it.isFile }
     }
 
+    fun writeTtmlToLoc(title: String, artist: String, ttmlContent: String): File? {
+        return try {
+            val file = File(lrcRootPath, "$title - $artist.ttml")
+            file.parentFile?.mkdirs()
+            file.writeText(ttmlContent, Charsets.UTF_8)
+            file
+        } catch (e: IOException) {
+            Log.e(TAG, "Unable to save TTML lyrics", e)
+            null
+        }
+    }
+
     fun getSyncedLyricsFile(song: Song): File? {
         // Preserve the established LRC preference. TTML is used when no LRC
         // sidecar exists, so existing libraries do not silently change format.
