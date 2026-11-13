@@ -25,6 +25,8 @@ import code.name.monkey.retromusic.util.PreferenceUtil
 import code.name.monkey.retromusic.util.color.MediaNotificationProcessor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import code.name.monkey.retromusic.lyrics.TtmlUtils
 import org.jaudiotagger.audio.exceptions.CannotReadException
 import java.io.File
 import java.io.FileNotFoundException
@@ -40,6 +42,8 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
     private val lyricsLine2: TextView get() = binding.playerLyricsLine2
 
     private var lyrics: Lyrics? = null
+    private var useTtmlLyrics = false
+    private var lyricsLoadToken = 0
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -56,6 +60,15 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
         binding.playerLyricsLine2.setOnClickListener {
             goToLyrics(requireActivity())
         }
+        binding.playerLyricsFormat.setOnClickListener {
+            val song = MusicPlayerRemote.currentSong
+            if (LyricUtil.getLrcLyricsFile(song) != null &&
+                LyricUtil.getTtmlLyricsFile(song) != null
+            ) {
+                useTtmlLyrics = !useTtmlLyrics
+                updateLyrics()
+            }
+        }
     }
 
     fun setColors(color: MediaNotificationProcessor) {
@@ -65,6 +78,7 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
             playerLyricsLine1.setShadowLayer(dipToPix(10f), 0f, 0f, color.backgroundColor)
             playerLyricsLine2.setTextColor(color.primaryTextColor)
             playerLyricsLine2.setShadowLayer(dipToPix(10f), 0f, 0f, color.backgroundColor)
+            playerLyricsFormat.setTextColor(color.primaryTextColor)
         }
 
     }
@@ -84,6 +98,7 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
 
     override fun onPlayingMetaChanged() {
         super.onPlayingMetaChanged()
+        useTtmlLyrics = false
         if (PreferenceUtil.showLyrics) {
             updateLyrics()
         }
@@ -98,22 +113,44 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
 
     private fun updateLyrics() {
         lyrics = null
-        lifecycleScope.launch(Dispatchers.IO) {
-            val song = MusicPlayerRemote.currentSong
-            lyrics = try {
-                val lrcFile: File? = LyricUtil.getSyncedLyricsFile(song)
-                val data: String = LyricUtil.getStringFromLrc(lrcFile)
-                Lyrics.parse(song,
-                    data.ifEmpty {
-                        // Get Embedded Lyrics
-                        LyricUtil.getEmbeddedSyncedLyrics(song.data)
+        val song = MusicPlayerRemote.currentSong
+        val requestToken = ++lyricsLoadToken
+        lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                try {
+                    val lrcFile = LyricUtil.getLrcLyricsFile(song)
+                    val ttmlFile = LyricUtil.getTtmlLyricsFile(song)
+                    val selectedFile = when {
+                        lrcFile != null && ttmlFile != null ->
+                            if (useTtmlLyrics) ttmlFile else lrcFile
+                        lrcFile != null -> lrcFile
+                        else -> ttmlFile
                     }
-                )
-            } catch (err: FileNotFoundException) {
-                null
-            } catch (e: CannotReadException) {
-                null
+                    val fileText = selectedFile?.let { LyricUtil.getStringFromLrc(it) }.orEmpty()
+                    val embedded = if (fileText.isEmpty()) {
+                        LyricUtil.getEmbeddedSyncedLyrics(song.data).orEmpty()
+                    } else {
+                        ""
+                    }
+                    val content = fileText.ifEmpty { embedded }
+                    val format = when {
+                        selectedFile?.extension.equals("ttml", ignoreCase = true) -> "TTML"
+                        selectedFile != null -> "LRC"
+                        TtmlUtils.isTtml(content) -> "TTML"
+                        content.isNotBlank() -> "LRC"
+                        else -> ""
+                    }
+                    Pair(Lyrics.parse(song, content), format)
+                } catch (err: FileNotFoundException) {
+                    null
+                } catch (e: CannotReadException) {
+                    null
+                }
             }
+            if (_binding == null || requestToken != lyricsLoadToken) return@launch
+            lyrics = result?.first
+            binding.playerLyricsFormat.text = result?.second.orEmpty()
+            binding.playerLyricsFormat.isVisible = !result?.second.isNullOrBlank()
         }
     }
 
@@ -187,6 +224,7 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
         PreferenceManager.getDefaultSharedPreferences(requireContext())
             .unregisterOnSharedPreferenceChangeListener(this)
         progressViewUpdateHelper?.stop()
+        lyricsLoadToken++
         _binding = null
     }
 }
