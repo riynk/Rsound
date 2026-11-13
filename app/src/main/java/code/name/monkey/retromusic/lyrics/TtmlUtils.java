@@ -58,6 +58,7 @@ public final class TtmlUtils {
                     long parsedParagraphStart = parseTime(attribute(parser, "begin"));
                     long paragraphStart = Math.max(0L, parsedParagraphStart);
                     String speaker = attribute(parser, "agent");
+                    boolean paragraphBackground = "x-bg".equals(attribute(parser, "role"));
 
                     StringBuilder text = new StringBuilder();
                     List<LrcEntry.WordTiming> words = new ArrayList<>();
@@ -82,7 +83,8 @@ public final class TtmlUtils {
                                     parseTime(attribute(parser, "dur")),
                                     parentOffset,
                                     timeOffset,
-                                    "x-bg".equals(attribute(parser, "role")) ||
+                                    paragraphBackground ||
+                                        "x-bg".equals(attribute(parser, "role")) ||
                                         (!spans.isEmpty() && spans.peek().background)
                                 ));
                             } else if ("br".equals(tag)) {
@@ -114,7 +116,7 @@ public final class TtmlUtils {
                     }
 
                     String line = text.toString().replace('\u00A0', ' ').trim();
-                    if (!line.isEmpty()) {
+                    if (!line.isEmpty() && (parsedParagraphStart >= 0 || !words.isEmpty())) {
                         int trimStart = 0;
                         while (trimStart < text.length() &&
                             Character.isWhitespace(text.charAt(trimStart))) trimStart++;
