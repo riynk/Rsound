@@ -18,6 +18,11 @@ import android.text.Layout;
 import android.text.StaticLayout;
 import android.text.TextPaint;
 import android.text.TextUtils;
+import android.text.SpannableString;
+import android.text.style.ForegroundColorSpan;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 一行歌词实体
@@ -30,6 +35,8 @@ class LrcEntry implements Comparable<LrcEntry> {
   private final String text;
   private String secondText;
   private StaticLayout staticLayout;
+  private final List<WordTiming> wordTimings = new ArrayList<>();
+  private long currentTime;
   /** 歌词距离视图顶部的距离 */
   private float offset = Float.MIN_VALUE;
 
@@ -63,6 +70,59 @@ class LrcEntry implements Comparable<LrcEntry> {
     staticLayout = new StaticLayout(getShowText(), paint, width, align, 1f, 0f, false);
 
     offset = Float.MIN_VALUE;
+  }
+
+
+  void setWordTimings(List<WordTiming> timings) {
+    wordTimings.clear();
+    if (timings != null) wordTimings.addAll(timings);
+  }
+
+  boolean hasWordTimings() {
+    return !wordTimings.isEmpty();
+  }
+
+  void updateWordHighlight(TextPaint paint, int width, int gravity, long time,
+      int activeColor, int inactiveColor) {
+    if (wordTimings.isEmpty()) return;
+    currentTime = time;
+    Layout.Alignment align;
+    switch (gravity) {
+      case GRAVITY_LEFT:
+        align = Layout.Alignment.ALIGN_NORMAL;
+        break;
+      case GRAVITY_RIGHT:
+        align = Layout.Alignment.ALIGN_OPPOSITE;
+        break;
+      default:
+        align = Layout.Alignment.ALIGN_CENTER;
+        break;
+    }
+    SpannableString styled = new SpannableString(getShowText());
+    for (WordTiming word : wordTimings) {
+      int color = time >= word.start && time < word.end ? activeColor : inactiveColor;
+      int start = Math.max(0, Math.min(word.startIndex, styled.length()));
+      int end = Math.max(start, Math.min(word.endIndex, styled.length()));
+      if (end > start) {
+        styled.setSpan(new ForegroundColorSpan(color), start, end,
+            SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE);
+      }
+    }
+    staticLayout = new StaticLayout(styled, paint, width, align, 1f, 0f, false);
+  }
+
+  static final class WordTiming {
+    final long start;
+    long end;
+    final int startIndex;
+    final int endIndex;
+
+    WordTiming(long start, long end, int startIndex, int endIndex) {
+      this.start = start;
+      this.end = end;
+      this.startIndex = startIndex;
+      this.endIndex = endIndex;
+    }
   }
 
   long getTime() {
